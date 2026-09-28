@@ -14,7 +14,8 @@
 
 ## 已接数据源
 
-- 36氪“融资”搜索 RSS（公共 RSSHub 实例）
+- 36氪官方文章 RSS
+- 36氪官方快讯 RSS
 - TechCrunch Venture RSS
 
 微信公众号暂不伪装成免登录能力。部署并登录 WeWe RSS 后，把它生成的 RSS 地址追加到 `config/config.yaml` 的 `rss.feeds`；若公开源覆盖已够用，也可以不加。
