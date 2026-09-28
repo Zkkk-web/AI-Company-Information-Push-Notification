@@ -14,9 +14,14 @@
 
 ## 已接数据源
 
-- 36氪官方文章 RSS
-- 36氪官方快讯 RSS
-- TechCrunch Venture RSS
+| 信号范围 | 来源 |
+| --- | --- |
+| 国内融资、公司与人员变动 | 36氪文章、36氪快讯、钛媒体、极客公园 |
+| 国内 AI 产品、团队和产业动态 | 量子位、雷峰网 |
+| 海外融资与创投 | TechCrunch Venture、Crunchbase News、Sifted |
+| 海外 AI 产品与公司动作 | The Decoder、SiliconANGLE AI |
+
+共 11 路 RSS、10 家独立媒体。这里只统计已通过实际抓取和解析验证的来源，不把失效链接算入覆盖率。
 
 微信公众号暂不伪装成免登录能力。部署并登录 WeWe RSS 后，把它生成的 RSS 地址追加到 `config/config.yaml` 的 `rss.feeds`；若公开源覆盖已够用，也可以不加。
 
