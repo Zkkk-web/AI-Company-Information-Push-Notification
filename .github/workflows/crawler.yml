@@ -1,0 +1,61 @@
+name: Startup Intelligence Daily
+
+on:
+  schedule:
+    # GitHub Actions uses UTC: 01:30 = 09:30 Asia/Shanghai.
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: startup-intelligence-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        run: uv sync --frozen --no-dev
+
+      # ponytail: Actions cache is enough for the 7-10 day pilot; use R2/S3
+      # when durable history or multiple runners matter.
+      - name: Restore history
+        uses: actions/cache/restore@v4
+        with:
+          path: output
+          key: startup-intelligence-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            startup-intelligence-${{ runner.os }}-
+
+      - name: Run crawler
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          AI_FILTER_ENABLED: ${{ secrets.AI_FILTER_ENABLED }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+          AI_API_BASE: ${{ secrets.AI_API_BASE }}
+          GITHUB_ACTIONS: true
+        run: uv run python -m trendradar
+
+      - name: Save history
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: output
+          key: startup-intelligence-${{ runner.os }}-${{ github.run_id }}

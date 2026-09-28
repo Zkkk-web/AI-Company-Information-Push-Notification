@@ -1,0 +1,34 @@
+# 大厂幼年体情报试跑规则
+# 规则只匹配标题；正文核验与语义合并在试跑后再增加。
+
+[GLOBAL_FILTER]
+基金募资
+基金募集
+新基金
+母基金
+募资规模
+
+[WORD_GROUPS]
+
+[A级·融资金额达标]
++/融资|融得|获投|完成.{0,10}(?:轮|融资)|raises?|raised|funding|seed|series\s+[a-c]/
++/(?:[7-9]\d{2}|[1-9]\d{3,})\s*万(?:元|人民币)?|(?:数)?千万|(?:数)?亿元|(?:100|[1-9]\d{2,})\s*万(?:美元|美金)|[$€£]\s*(?:1(?:\.\d+)?|[2-9]\d*(?:\.\d+)?)\s*(?:m|million)\b|(?:1(?:\.\d+)?|[2-9]\d*(?:\.\d+)?)\s*million\s*(?:usd|dollars?|euros?|pounds?)?/
+/(?<![a-z])ai(?![a-z])|人工智能|大模型|agent|智能体|saas|productivity|效率工具|生产力|内容|视频|音频|娱乐|游戏|陪伴|社交|消费|出海|全球化|跨境|硬件|机器人|智能眼镜|可穿戴|终端/
+@15
+
+[A级·重点机构]
++/融资|融得|获投|投资|领投|参投|funding|funded|backed|seed|series\s+[a-c]/
++/高瓴|红杉|HSG|Sequoia|真格|ZhenFund|绿洲资本|源码|经纬|纪源|GGV|启明|顺为|五源|创新工场|a16z|Andreessen|Lightspeed|Accel/
+/(?<![a-z])ai(?![a-z])|人工智能|大模型|agent|智能体|saas|productivity|效率工具|生产力|内容|视频|音频|娱乐|游戏|陪伴|社交|消费|出海|全球化|跨境|硬件|机器人|智能眼镜|可穿戴|终端/
+@15
+
+[B级·大厂高管新团队]
++/创业|创办|成立新公司|加入|加盟|出任|担任|组建|新团队|new\s+venture|founded|joins?/
++/阿里|腾讯|字节|美团|快手|小红书|拼多多|百度|京东|华为|小米|大疆|MiniMax|月之暗面|DeepSeek|Google|DeepMind|OpenAI|Anthropic|Meta|Microsoft|Amazon|AWS|Apple|NVIDIA/
+/(?<![a-z])ai(?![a-z])|人工智能|大模型|agent|智能体|saas|productivity|内容|娱乐|游戏|陪伴|消费|出海|硬件|机器人|智能眼镜|可穿戴/
+@10
+
+[B级·新业务与新市场]
++/新业务|新产品线|新市场|进军|出海|全球化|海外扩张|launches|expands?\s+(?:into|to)/
+/(?<![a-z])ai(?![a-z])|人工智能|大模型|agent|智能体|saas|productivity|内容|娱乐|游戏|陪伴|消费|硬件|机器人|智能眼镜|可穿戴/
+@5
