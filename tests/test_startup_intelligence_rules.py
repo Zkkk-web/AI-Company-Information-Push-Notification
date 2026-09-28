@@ -1,5 +1,7 @@
 import unittest
 
+import yaml
+
 from trendradar.core.frequency import load_frequency_words, matches_word_groups
 
 
@@ -32,6 +34,28 @@ class StartupIntelligenceRulesTest(unittest.TestCase):
         ):
             with self.subTest(title=title):
                 self.assertDoesNotMatch(title)
+
+    def test_source_coverage(self):
+        with open("config/config.yaml", encoding="utf-8") as config_file:
+            feeds = yaml.safe_load(config_file)["rss"]["feeds"]
+
+        feed_ids = {feed["id"] for feed in feeds}
+        self.assertEqual(len(feeds), len(feed_ids), "RSS feed IDs must be unique")
+        self.assertGreaterEqual(len(feeds), 11)
+        self.assertTrue(
+            {
+                "36kr-articles",
+                "qbitai",
+                "geekpark",
+                "tmtpost",
+                "leiphone",
+                "techcrunch-venture",
+                "crunchbase-news",
+                "sifted",
+                "the-decoder",
+                "siliconangle-ai",
+            }.issubset(feed_ids)
+        )
 
 
 if __name__ == "__main__":

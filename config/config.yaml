@@ -104,9 +104,41 @@ rss:
       name: "36氪快讯"
       url: "https://www.36kr.com/feed-newsflash"
 
+    - id: "qbitai"
+      name: "量子位"
+      url: "https://www.qbitai.com/feed"
+
+    - id: "geekpark"
+      name: "极客公园"
+      url: "https://www.geekpark.net/rss"
+
+    - id: "tmtpost"
+      name: "钛媒体"
+      url: "https://www.tmtpost.com/rss.xml"
+
+    - id: "leiphone"
+      name: "雷峰网"
+      url: "https://www.leiphone.com/feed"
+
     - id: "techcrunch-venture"
       name: "TechCrunch Venture"
       url: "https://techcrunch.com/category/venture/feed/"
+
+    - id: "crunchbase-news"
+      name: "Crunchbase News"
+      url: "https://news.crunchbase.com/feed/"
+
+    - id: "sifted"
+      name: "Sifted"
+      url: "https://sifted.eu/feed"
+
+    - id: "the-decoder"
+      name: "The Decoder"
+      url: "https://the-decoder.com/feed/"
+
+    - id: "siliconangle-ai"
+      name: "SiliconANGLE AI"
+      url: "https://siliconangle.com/category/ai/feed/"
 
 
 # ===============================================================
