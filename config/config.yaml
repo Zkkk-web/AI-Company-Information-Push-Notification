@@ -140,6 +140,10 @@ rss:
       name: "SiliconANGLE AI"
       url: "https://siliconangle.com/category/ai/feed/"
 
+    - id: "aihot-selected"
+      name: "AIHOT 精选"
+      url: "https://aihot.news/feed.xml"
+
     # 新闻搜索 RSS：不依赖公众号登录，用于补齐机构投资和高管流动信号。
     - id: "google-news-cn-ai-funding"
       name: "中文 AI 融资搜索"

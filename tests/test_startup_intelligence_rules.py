@@ -42,7 +42,7 @@ class StartupIntelligenceRulesTest(unittest.TestCase):
         feed_ids = {feed["id"] for feed in feeds}
         active_feeds = [feed for feed in feeds if feed.get("enabled", True)]
         self.assertEqual(len(feeds), len(feed_ids), "RSS feed IDs must be unique")
-        self.assertGreaterEqual(len(active_feeds), 15)
+        self.assertGreaterEqual(len(active_feeds), 16)
         self.assertTrue(
             {
                 "36kr-articles",
@@ -55,6 +55,7 @@ class StartupIntelligenceRulesTest(unittest.TestCase):
                 "sifted",
                 "the-decoder",
                 "siliconangle-ai",
+                "aihot-selected",
                 "google-news-cn-ai-funding",
                 "google-news-cn-vc-watch",
                 "google-news-cn-executive-moves",
