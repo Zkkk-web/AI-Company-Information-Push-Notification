@@ -40,8 +40,9 @@ class StartupIntelligenceRulesTest(unittest.TestCase):
             feeds = yaml.safe_load(config_file)["rss"]["feeds"]
 
         feed_ids = {feed["id"] for feed in feeds}
+        active_feeds = [feed for feed in feeds if feed.get("enabled", True)]
         self.assertEqual(len(feeds), len(feed_ids), "RSS feed IDs must be unique")
-        self.assertGreaterEqual(len(feeds), 11)
+        self.assertGreaterEqual(len(active_feeds), 11)
         self.assertTrue(
             {
                 "36kr-articles",
@@ -55,6 +56,20 @@ class StartupIntelligenceRulesTest(unittest.TestCase):
                 "the-decoder",
                 "siliconangle-ai",
             }.issubset(feed_ids)
+        )
+        staged_wechat_ids = {
+            "wechat-zhenfund",
+            "wechat-sourcecode-capital",
+            "wechat-qiming-venture",
+            "wechat-frees-fund",
+            "wechat-bluerun-ventures",
+            "wechat-gaorong-ventures",
+            "wechat-linear-capital",
+            "wechat-vitalbridge",
+        }
+        self.assertTrue(staged_wechat_ids.issubset(feed_ids))
+        self.assertTrue(
+            all(not feed.get("enabled", True) for feed in feeds if feed["id"] in staged_wechat_ids)
         )
 
 

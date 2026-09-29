@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=https://schema.zeabur.app/template.json
+apiVersion: zeabur.com/v1
+kind: Template
+metadata:
+  name: AI Company WeChat Source
+spec:
+  description: Private WeChat Official Account collector with public read-only RSS feeds.
+  icon: https://raw.githubusercontent.com/Zkkk-web/wechrss/main/static/favicon.svg
+  services:
+    - name: WechRss
+      icon: https://raw.githubusercontent.com/Zkkk-web/wechrss/main/static/favicon.svg
+      template: GIT
+      domainKey: PUBLIC_DOMAIN
+      spec:
+        id: wechrss
+        source:
+          source: GITHUB
+          repo: 1393683951
+          branch: main
+        ports:
+          - id: web
+            port: 8080
+            type: HTTP
+        volumes:
+          - id: data
+            dir: /app/data
+        instructions:
+          - title: WechRss admin username
+            content: admin
+          - title: WechRss admin password
+            content: ${ADMIN_PASSWORD}
+        env:
+          ADMIN_PASSWORD:
+            default: ${PASSWORD}
+            expose: false
+          HTTP_TIMEOUT:
+            default: "20"
+            expose: false
+          PUBLIC_DOMAIN:
+            default: ai-company-wechat-source
+            expose: false
+          SCHEDULER_POLL_SECONDS:
+            default: "60"
+            expose: false
+          WEREAD_MIN_INTERVAL:
+            default: "5"
+            expose: false
+          WEREAD_QR_DEADLINE_SECONDS:
+            default: "300"
+            expose: false
+          WECHAT_MP_CREDENTIALS:
+            default: /app/data/credentials.json
+            expose: false
+          WECHAT_MP_DATA:
+            default: /app/data
+            expose: false
+          WECHAT_MP_DB:
+            default: /app/data/wechat_mp.db
+            expose: false
+        configs: []
+        portForwarding:
+          enabled: false
