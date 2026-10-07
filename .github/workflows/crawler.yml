@@ -5,6 +5,12 @@ on:
     # GitHub Actions uses UTC: 01:30 = 09:30 Asia/Shanghai.
     - cron: "30 1 * * *"
   workflow_dispatch:
+    inputs:
+      send_notifications:
+        description: "Send qualifying alerts to the configured Feishu webhook"
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: startup-intelligence-${{ github.ref_name }}
@@ -45,8 +51,8 @@ jobs:
 
       - name: Run crawler
         env:
-          # Manual runs are validation-only. Scheduled runs keep the production webhook.
-          FEISHU_WEBHOOK_URL: ${{ github.event_name == 'schedule' && secrets.FEISHU_WEBHOOK_URL || '' }}
+          # Manual runs stay validation-only unless send_notifications is explicitly enabled.
+          FEISHU_WEBHOOK_URL: ${{ (github.event_name == 'schedule' || inputs.send_notifications) && secrets.FEISHU_WEBHOOK_URL || '' }}
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
           AI_FILTER_ENABLED: ${{ secrets.AI_FILTER_ENABLED }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}

@@ -44,7 +44,7 @@ uv run python -m trendradar
 工作流每天北京时间 09:30 运行，也支持手动触发。把本分支放到你控制的 GitHub 仓库后配置：
 
 - 必需：`FEISHU_WEBHOOK_URL`，目标飞书群机器人的 webhook。
-- Jev 测试：仓库 Secret `TYPESAFE_API_KEY`。手动 Actions 运行固定不传入飞书 webhook，因此只测试抓取和判断，不会发群消息。
+- Jev 测试：仓库 Secret `TYPESAFE_API_KEY`。手动 Actions 默认不传入飞书 webhook，因此只测试抓取和判断；只有显式勾选 `send_notifications` 才会真实发群消息。
 - 通用生成式 AI 筛选仍可选：`AI_FILTER_ENABLED=true`、`AI_API_KEY`、`AI_MODEL`、`AI_API_BASE`。
 
 试跑用 Actions cache 保存 SQLite 去重记录；正式长期运行时再换 R2/S3 或常驻 Docker。Actions cache 不是永久数据库。
