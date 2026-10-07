@@ -31,7 +31,12 @@ class AIFilterPipeline:
         self.get_time = get_time_func
 
         self._ai_config = config.get("AI", {})
-        self._filter_config = config.get("AI_FILTER", {})
+        self._filter_method = config.get("FILTER", {}).get("METHOD", "keyword")
+        self._filter_config = (
+            config.get("JEV_FILTER", {})
+            if self._filter_method == "jev"
+            else config.get("AI_FILTER", {})
+        )
         self._debug = config.get("DEBUG", False)
 
         rss_config = config.get("RSS", {})
@@ -74,13 +79,20 @@ class AIFilterPipeline:
         """
         filter_config = self._filter_config
 
-        ai_filter = AIFilter(self._ai_config, filter_config, self.get_time, self._debug)
+        if self._filter_method == "jev":
+            from trendradar.ai.jev_filter import JevFilter
+
+            ai_filter = JevFilter(filter_config, self._debug)
+        else:
+            ai_filter = AIFilter(
+                self._ai_config, filter_config, self.get_time, self._debug
+            )
 
         configured_interests = interests_file or filter_config.get("INTERESTS_FILE")
         effective_interests_file = configured_interests or "ai_interests.txt"
 
         if self._debug:
-            print(f"[AI筛选][DEBUG] === 配置信息 ===")
+            print(f"[AI筛选][DEBUG] === 配置信息 ({self._filter_method}) ===")
             print(f"[AI筛选][DEBUG] 存储后端: {self.storage.backend_name}")
             print(f"[AI筛选][DEBUG] batch_size={filter_config.get('BATCH_SIZE', 200)}, "
                   f"batch_interval={filter_config.get('BATCH_INTERVAL', 5)}")
@@ -145,6 +157,17 @@ class AIFilterPipeline:
             ai_filter, pending_news, pending_rss, active_tags, interests_content, filter_config,
         )
 
+        # A provider outage must not turn into a successful empty result. Returning a
+        # failure lets the caller use the existing keyword path, while unsucceeded IDs
+        # remain unmarked and will be retried on the next run.
+        total_succeeded = len(succeeded_news_ids) + len(succeeded_rss_ids)
+        if total_pending > 0 and total_succeeded == 0:
+            self.storage.end_batch()
+            return AIFilterResult(
+                success=False,
+                error=f"{self._filter_method} 筛选批次全部失败",
+            )
+
         # 6. 保存结果
         self._save_results(
             total_results, succeeded_news_ids, succeeded_rss_ids,
@@ -168,12 +191,20 @@ class AIFilterPipeline:
                 tag_counts[key] = tag_counts.get(key, 0) + 1
             for key, count in sorted(tag_counts.items()):
                 print(f"[AI筛选][DEBUG]   {key}: {count} 条")
+            for result in all_results:
+                print(
+                    "[AI筛选][DEBUG]   "
+                    f"[{result.get('tag', '?')}] "
+                    f"score={result.get('relevance_score', 0):.3f} "
+                    f"[{result.get('source_name', result.get('source_id', '?'))}] "
+                    f"{result.get('title', '')}"
+                )
 
         return self._build_filter_result(all_results, active_tags, total_pending)
 
     def _handle_tag_update(
         self,
-        ai_filter: AIFilter,
+        ai_filter: Any,
         interests_content: str,
         current_hash: str,
         stored_hash: Optional[str],
@@ -328,7 +359,13 @@ class AIFilterPipeline:
                 time.sleep(batch_interval)
             batch = pending_news[i:i + batch_size]
             titles_for_ai = [
-                {"id": n["id"], "title": n["title"], "source": n.get("source_name", "")}
+                {
+                    "id": n["id"],
+                    "title": n["title"],
+                    "source": n.get("source_name", ""),
+                    "url": n.get("url", ""),
+                    "summary": n.get("summary", ""),
+                }
                 for n in batch
             ]
             batch_results = ai_filter.classify_batch(titles_for_ai, active_tags, interests_content)
@@ -350,7 +387,13 @@ class AIFilterPipeline:
                 time.sleep(batch_interval)
             batch = pending_rss[i:i + batch_size]
             titles_for_ai = [
-                {"id": n["id"], "title": n["title"], "source": n.get("source_name", "")}
+                {
+                    "id": n["id"],
+                    "title": n["title"],
+                    "source": n.get("source_name", ""),
+                    "url": n.get("url", ""),
+                    "summary": n.get("summary", ""),
+                }
                 for n in batch
             ]
             batch_results = ai_filter.classify_batch(titles_for_ai, active_tags, interests_content)
@@ -447,8 +490,12 @@ class AIFilterPipeline:
                 "count": r.get("count", 1),
                 "relevance_score": r.get("relevance_score", 0),
                 "source_type": r.get("source_type", "hotlist"),
+                "summary": r.get("summary", ""),
             })
             tag_groups[tag_name]["count"] += 1
+
+        if self._filter_method == "jev":
+            tag_groups = self._deduplicate_jev_results(tag_groups)
 
         if self._priority_sort_enabled:
             sorted_tags = sorted(
@@ -469,6 +516,46 @@ class AIFilterPipeline:
             total_processed=total_processed,
             success=True,
         )
+
+    @staticmethod
+    def _deduplicate_jev_results(tag_groups: Dict[str, Dict]) -> Dict[str, Dict]:
+        """Keep one high-confidence report per company funding event."""
+        from trendradar.ai.jev_filter import funding_event_key
+
+        flattened = []
+        for tag_name, tag_data in tag_groups.items():
+            for item in tag_data.get("items", []):
+                flattened.append((tag_name, tag_data, item))
+        flattened.sort(
+            key=lambda entry: float(entry[2].get("relevance_score", 0)),
+            reverse=True,
+        )
+
+        seen_events = set()
+        kept_by_tag: Dict[str, List[Dict]] = {name: [] for name in tag_groups}
+        duplicate_count = 0
+        for tag_name, _tag_data, item in flattened:
+            event_key = funding_event_key(item.get("title", ""), tag_name)
+            if not event_key and item.get("summary"):
+                event_key = funding_event_key(item["summary"], tag_name)
+            if event_key and event_key in seen_events:
+                duplicate_count += 1
+                continue
+            if event_key:
+                seen_events.add(event_key)
+            kept_by_tag[tag_name].append(item)
+
+        deduplicated = {}
+        for tag_name, tag_data in tag_groups.items():
+            kept_items = kept_by_tag[tag_name]
+            if not kept_items:
+                continue
+            tag_data["items"] = kept_items
+            tag_data["count"] = len(kept_items)
+            deduplicated[tag_name] = tag_data
+        if duplicate_count:
+            print(f"[Jev筛选] 同事件去重：合并 {duplicate_count} 条跨媒体重复报道")
+        return deduplicated
 
     def convert_to_report_data(
         self,

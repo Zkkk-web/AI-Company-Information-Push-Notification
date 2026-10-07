@@ -1676,7 +1676,7 @@ class SQLiteStorageMixin:
                     placeholders = ",".join("?" * len(rss_ids))
                     rss_cursor.execute(f"""
                         SELECT i.id, i.title, i.feed_id, f.name as feed_name,
-                               i.url, i.published_at
+                               i.url, i.published_at, i.summary
                         FROM rss_items i
                         LEFT JOIN rss_feeds f ON i.feed_id = f.id
                         WHERE i.id IN ({placeholders})
@@ -1705,6 +1705,7 @@ class SQLiteStorageMixin:
                                 "ranks": [],
                                 "first_time": info[5] or "",
                                 "last_time": info[5] or "",
+                                "summary": info[6] or "",
                                 "count": 1,
                             })
             except Exception:
@@ -1746,7 +1747,8 @@ class SQLiteStorageMixin:
             cursor = conn.cursor()
 
             cursor.execute("""
-                SELECT i.id, i.title, i.feed_id, f.name as feed_name, i.published_at
+                SELECT i.id, i.title, i.feed_id, f.name as feed_name,
+                       i.published_at, i.url, i.summary
                 FROM rss_items i
                 LEFT JOIN rss_feeds f ON i.feed_id = f.id
                 ORDER BY i.id
@@ -1757,6 +1759,7 @@ class SQLiteStorageMixin:
                     "id": row[0], "title": row[1],
                     "source_id": row[2], "source_name": row[3] or row[2],
                     "published_at": row[4] or "",
+                    "url": row[5] or "", "summary": row[6] or "",
                 }
                 for row in cursor.fetchall()
             ]

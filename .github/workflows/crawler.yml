@@ -45,11 +45,14 @@ jobs:
 
       - name: Run crawler
         env:
-          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          # Manual runs are validation-only. Scheduled runs keep the production webhook.
+          FEISHU_WEBHOOK_URL: ${{ github.event_name == 'schedule' && secrets.FEISHU_WEBHOOK_URL || '' }}
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
           AI_FILTER_ENABLED: ${{ secrets.AI_FILTER_ENABLED }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
           AI_API_BASE: ${{ secrets.AI_API_BASE }}
+          DEBUG: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
           GITHUB_ACTIONS: true
         run: uv run python -m trendradar
 
