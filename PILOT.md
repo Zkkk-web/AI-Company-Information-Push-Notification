@@ -1,6 +1,6 @@
 # 大厂幼年体情报提醒：7–10 天试跑
 
-这个分支复用 TrendRadar，只做每天一次的候选信号发现。默认使用确定性的标题规则，不调用模型；人工看过误报和漏报后，再决定是否开启 AI 筛选或写独立服务。
+这个分支复用 TrendRadar，只做每天一次的候选信号发现。关键词规则负责基线和接口故障时的回退；当前测试分支增加 Jev 固定选项判断，读取标题、来源、链接和 RSS 摘要，再按既定 A/B 口径输出。Jev 不生成长文本，也不负责抓取或发送通知。
 
 ## 当前口径
 
@@ -44,10 +44,11 @@ uv run python -m trendradar
 工作流每天北京时间 09:30 运行，也支持手动触发。把本分支放到你控制的 GitHub 仓库后配置：
 
 - 必需：`FEISHU_WEBHOOK_URL`，目标飞书群机器人的 webhook。
-- 可选：`AI_FILTER_ENABLED=true`、`AI_API_KEY`、`AI_MODEL`、`AI_API_BASE`。不开启时完全使用关键词规则。
+- Jev 测试：仓库 Secret `TYPESAFE_API_KEY`。手动 Actions 默认不传入飞书 webhook，因此只测试抓取和判断；只有显式勾选 `send_notifications` 才会真实发群消息。
+- 通用生成式 AI 筛选仍可选：`AI_FILTER_ENABLED=true`、`AI_API_KEY`、`AI_MODEL`、`AI_API_BASE`。
 
 试跑用 Actions cache 保存 SQLite 去重记录；正式长期运行时再换 R2/S3 或常驻 Docker。Actions cache 不是永久数据库。
 
 ## 已知上限
 
-当前规则只读取标题，因此金额藏在正文、同一事件跨媒体改标题、薪资不公开等情况仍需人工判断。7–10 天后按真实误报/漏报决定是否增加正文抓取、语义去重、公司状态与职位薪资模块。
+当前 Jev 读取标题和 RSS 自带摘要，尚未主动抓取全文；金额或人物信息只出现在正文深处时仍可能漏报。首轮真实测试确认精度和成本后，再决定是否增加正文抓取、语义去重、公司状态与职位薪资模块。

@@ -230,13 +230,14 @@ report:
 # 4.5 筛选策略
 # ===============================================================
 filter:
-  method: "keyword"                     # 筛选方式（二选一）
+  method: "jev"                         # 筛选方式（三选一）
                                        # keyword = 关键词匹配，不调用 AI，不消耗 token，但规则固定
                                        #           词组定义在 config/frequency_words.txt
                                        # ai = AI 智能分类，更灵活但每次运行消耗 token
                                        #      兴趣描述在 config/ai_interests.txt，需配合下方 ai_filter
+                                       # jev = Jev 固定选项判断，读取标题 + RSS 摘要，需配合 jev_filter
 
-  priority_sort_enabled: true          # AI 模式标签排序（仅 method=ai 时生效）
+  priority_sort_enabled: true          # 模型标签排序（method=ai/jev 时生效）
                                        # true = 按兴趣描述中的定义顺序
                                        # false = 按匹配条数排序（多的在前）
 
@@ -269,6 +270,20 @@ ai_filter:
 
   # 标签更新提示词模板（兴趣变更时 AI 对比新旧标签）
   update_tags_prompt_file: "update_tags_prompt.txt"
+
+
+# ===============================================================
+# 4.7 Jev 固定选项筛选（仅 filter.method=jev 时生效）
+# ===============================================================
+jev_filter:
+  model: "jev-latest"
+  timeout: 25
+  batch_size: 10
+  batch_interval: 1
+  min_score: 0.75
+  max_summary_chars: 2000
+  interests_file: "startup-intelligence.txt"
+  reclassify_threshold: 0.6
 
 
 # ===============================================================

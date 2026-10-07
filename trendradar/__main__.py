@@ -670,9 +670,10 @@ class NewsAnalyzer:
         """统一的分析流水线：数据处理 → 统计计算（关键词/AI筛选）→ AI分析 → HTML生成"""
 
         # 根据筛选策略选择数据处理方式
-        if self.filter_method == "ai":
+        if self.filter_method in {"ai", "jev"}:
             # === AI 筛选策略 ===
-            print("[筛选] 使用 AI 智能筛选策略")
+            engine_name = "Jev 固定选项" if self.filter_method == "jev" else "AI 智能"
+            print(f"[筛选] 使用 {engine_name}筛选策略")
             ai_filter_result = self.ctx.run_ai_filter(interests_file=self.interests_file)
 
             if ai_filter_result and ai_filter_result.success:

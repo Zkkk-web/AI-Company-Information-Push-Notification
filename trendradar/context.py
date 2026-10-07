@@ -137,7 +137,7 @@ class AppContext:
 
     @property
     def filter_method(self) -> str:
-        """获取筛选策略: keyword | ai"""
+        """获取筛选策略: keyword | ai | jev"""
         return self.config.get("FILTER", {}).get("METHOD", "keyword")
 
     @property
@@ -152,8 +152,8 @@ class AppContext:
 
     @property
     def ai_filter_enabled(self) -> bool:
-        """AI 筛选是否启用（基于 filter.method 判断）"""
-        return self.filter_method == "ai"
+        """模型筛选是否启用（基于 filter.method 判断）。"""
+        return self.filter_method in {"ai", "jev"}
 
     # === 时间操作 ===
 
