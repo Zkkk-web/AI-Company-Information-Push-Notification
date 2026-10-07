@@ -1676,7 +1676,7 @@ class SQLiteStorageMixin:
                     placeholders = ",".join("?" * len(rss_ids))
                     rss_cursor.execute(f"""
                         SELECT i.id, i.title, i.feed_id, f.name as feed_name,
-                               i.url, i.published_at
+                               i.url, i.published_at, i.summary
                         FROM rss_items i
                         LEFT JOIN rss_feeds f ON i.feed_id = f.id
                         WHERE i.id IN ({placeholders})
@@ -1705,6 +1705,7 @@ class SQLiteStorageMixin:
                                 "ranks": [],
                                 "first_time": info[5] or "",
                                 "last_time": info[5] or "",
+                                "summary": info[6] or "",
                                 "count": 1,
                             })
             except Exception:

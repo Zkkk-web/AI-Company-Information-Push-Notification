@@ -490,6 +490,7 @@ class AIFilterPipeline:
                 "count": r.get("count", 1),
                 "relevance_score": r.get("relevance_score", 0),
                 "source_type": r.get("source_type", "hotlist"),
+                "summary": r.get("summary", ""),
             })
             tag_groups[tag_name]["count"] += 1
 
@@ -535,6 +536,8 @@ class AIFilterPipeline:
         duplicate_count = 0
         for tag_name, _tag_data, item in flattened:
             event_key = funding_event_key(item.get("title", ""), tag_name)
+            if not event_key and item.get("summary"):
+                event_key = funding_event_key(item["summary"], tag_name)
             if event_key and event_key in seen_events:
                 duplicate_count += 1
                 continue

@@ -190,6 +190,34 @@ class JevFilterTest(unittest.TestCase):
             result["A级·融资达标"]["items"][0]["relevance_score"], 0.97
         )
 
+    def test_pipeline_uses_summary_when_headline_is_generic(self):
+        groups = {
+            "A级·重点机构投资": {
+                "tag": "A级·重点机构投资",
+                "count": 1,
+                "items": [
+                    {
+                        "title": "今年最火00后诞生",
+                        "summary": "AI agent hardware startup Ghost raises $11M.",
+                        "relevance_score": 0.95,
+                    }
+                ],
+            },
+            "A级·融资达标": {
+                "tag": "A级·融资达标",
+                "count": 1,
+                "items": [
+                    {
+                        "title": "At 19, founder raises $11M for Ghost",
+                        "summary": "",
+                        "relevance_score": 1.0,
+                    }
+                ],
+            },
+        }
+        result = AIFilterPipeline._deduplicate_jev_results(groups)
+        self.assertEqual(sum(group["count"] for group in result.values()), 1)
+
 
 class ClassifierInputPipelineTest(unittest.TestCase):
     def test_rss_summary_and_url_reach_classifier(self):
