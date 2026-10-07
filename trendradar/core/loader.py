@@ -328,15 +328,41 @@ def _load_ai_filter_config(config_data: Dict) -> Dict:
     }
 
 
+def _load_jev_filter_config(config_data: Dict) -> Dict:
+    """加载 Jev 固定选项筛选配置。"""
+    jev_filter = config_data.get("jev_filter", {})
+    timeout_env = _get_env_int_or_none("TYPESAFE_TIMEOUT")
+
+    return {
+        "API_KEY": _get_env_str("TYPESAFE_API_KEY"),
+        "MODEL": _get_env_str("TYPESAFE_MODEL")
+        or jev_filter.get("model", "jev-latest"),
+        "TIMEOUT": timeout_env
+        if timeout_env is not None
+        else jev_filter.get("timeout", 25),
+        "BATCH_SIZE": jev_filter.get("batch_size", 10),
+        "BATCH_INTERVAL": jev_filter.get("batch_interval", 1),
+        "INTERESTS_FILE": jev_filter.get(
+            "interests_file", "startup-intelligence.txt"
+        ),
+        "RECLASSIFY_THRESHOLD": jev_filter.get("reclassify_threshold", 0.6),
+        "MIN_SCORE": float(jev_filter.get("min_score", 0.75)),
+        "MAX_SUMMARY_CHARS": int(jev_filter.get("max_summary_chars", 2000)),
+    }
+
+
 def _load_filter_config(config_data: Dict) -> Dict:
     """加载筛选策略配置"""
     filter_cfg = config_data.get("filter", {})
 
-    # 环境变量兼容：AI_FILTER_ENABLED=true → method=ai
+    # 环境变量兼容：显式 Jev 开关优先于旧版通用 AI 开关。
+    env_jev_filter = _get_env_bool("JEV_FILTER_ENABLED")
     env_ai_filter = _get_env_bool("AI_FILTER_ENABLED")
 
     method = filter_cfg.get("method", "keyword")
-    if env_ai_filter is True:
+    if env_jev_filter is True:
+        method = "jev"
+    elif env_ai_filter is True:
         method = "ai"
 
     # 兼容旧配置：如果 ai_filter.enabled=true 且未显式设置 filter.method
@@ -346,7 +372,7 @@ def _load_filter_config(config_data: Dict) -> Dict:
             method = "ai"
 
     return {
-        "METHOD": method,  # "keyword" | "ai"
+        "METHOD": method,  # "keyword" | "ai" | "jev"
         "PRIORITY_SORT_ENABLED": filter_cfg.get("priority_sort_enabled", False),  # AI 模式标签优先级排序开关
     }
 
@@ -587,6 +613,9 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
 
     # AI 智能筛选配置
     config["AI_FILTER"] = _load_ai_filter_config(config_data)
+
+    # Jev 固定选项筛选配置
+    config["JEV_FILTER"] = _load_jev_filter_config(config_data)
 
     # 筛选策略配置
     config["FILTER"] = _load_filter_config(config_data)

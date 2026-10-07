@@ -31,7 +31,12 @@ class AIFilterPipeline:
         self.get_time = get_time_func
 
         self._ai_config = config.get("AI", {})
-        self._filter_config = config.get("AI_FILTER", {})
+        self._filter_method = config.get("FILTER", {}).get("METHOD", "keyword")
+        self._filter_config = (
+            config.get("JEV_FILTER", {})
+            if self._filter_method == "jev"
+            else config.get("AI_FILTER", {})
+        )
         self._debug = config.get("DEBUG", False)
 
         rss_config = config.get("RSS", {})
@@ -74,13 +79,20 @@ class AIFilterPipeline:
         """
         filter_config = self._filter_config
 
-        ai_filter = AIFilter(self._ai_config, filter_config, self.get_time, self._debug)
+        if self._filter_method == "jev":
+            from trendradar.ai.jev_filter import JevFilter
+
+            ai_filter = JevFilter(filter_config, self._debug)
+        else:
+            ai_filter = AIFilter(
+                self._ai_config, filter_config, self.get_time, self._debug
+            )
 
         configured_interests = interests_file or filter_config.get("INTERESTS_FILE")
         effective_interests_file = configured_interests or "ai_interests.txt"
 
         if self._debug:
-            print(f"[AI筛选][DEBUG] === 配置信息 ===")
+            print(f"[AI筛选][DEBUG] === 配置信息 ({self._filter_method}) ===")
             print(f"[AI筛选][DEBUG] 存储后端: {self.storage.backend_name}")
             print(f"[AI筛选][DEBUG] batch_size={filter_config.get('BATCH_SIZE', 200)}, "
                   f"batch_interval={filter_config.get('BATCH_INTERVAL', 5)}")
@@ -145,6 +157,17 @@ class AIFilterPipeline:
             ai_filter, pending_news, pending_rss, active_tags, interests_content, filter_config,
         )
 
+        # A provider outage must not turn into a successful empty result. Returning a
+        # failure lets the caller use the existing keyword path, while unsucceeded IDs
+        # remain unmarked and will be retried on the next run.
+        total_succeeded = len(succeeded_news_ids) + len(succeeded_rss_ids)
+        if total_pending > 0 and total_succeeded == 0:
+            self.storage.end_batch()
+            return AIFilterResult(
+                success=False,
+                error=f"{self._filter_method} 筛选批次全部失败",
+            )
+
         # 6. 保存结果
         self._save_results(
             total_results, succeeded_news_ids, succeeded_rss_ids,
@@ -173,7 +196,7 @@ class AIFilterPipeline:
 
     def _handle_tag_update(
         self,
-        ai_filter: AIFilter,
+        ai_filter: Any,
         interests_content: str,
         current_hash: str,
         stored_hash: Optional[str],
@@ -328,7 +351,13 @@ class AIFilterPipeline:
                 time.sleep(batch_interval)
             batch = pending_news[i:i + batch_size]
             titles_for_ai = [
-                {"id": n["id"], "title": n["title"], "source": n.get("source_name", "")}
+                {
+                    "id": n["id"],
+                    "title": n["title"],
+                    "source": n.get("source_name", ""),
+                    "url": n.get("url", ""),
+                    "summary": n.get("summary", ""),
+                }
                 for n in batch
             ]
             batch_results = ai_filter.classify_batch(titles_for_ai, active_tags, interests_content)
@@ -350,7 +379,13 @@ class AIFilterPipeline:
                 time.sleep(batch_interval)
             batch = pending_rss[i:i + batch_size]
             titles_for_ai = [
-                {"id": n["id"], "title": n["title"], "source": n.get("source_name", "")}
+                {
+                    "id": n["id"],
+                    "title": n["title"],
+                    "source": n.get("source_name", ""),
+                    "url": n.get("url", ""),
+                    "summary": n.get("summary", ""),
+                }
                 for n in batch
             ]
             batch_results = ai_filter.classify_batch(titles_for_ai, active_tags, interests_content)
