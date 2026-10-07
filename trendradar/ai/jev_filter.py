@@ -70,12 +70,75 @@ JUDGMENT_RULES = [
     "若同时符合多个选项，只选证据最强的一项；优先级依次为重点机构投资、融资达标、高管动向、新业务/新市场。",
 ]
 
+_FUNDING_WORDS = re.compile(
+    r"融资|募资|投资|raises?|raised|raising|funding|series|seed|reels\s+in",
+    re.IGNORECASE,
+)
+_ENTITY_PATTERNS = (
+    re.compile(r"\bstartup\s+([A-Za-z][A-Za-z0-9.-]{2,})", re.IGNORECASE),
+    re.compile(
+        r"\b([A-Za-z][A-Za-z0-9.-]{2,})\s+(?:raises?|raised|is\s+raising|to\s+raise|reels\s+in)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\bfor\s+([A-Za-z][A-Za-z0-9.-]{2,})\b", re.IGNORECASE),
+    re.compile(r"\bback\s+([A-Za-z][A-Za-z0-9.-]{2,})(?:'s)?\b", re.IGNORECASE),
+    re.compile(r"\bplatform\s+([A-Za-z][A-Za-z0-9.-]{2,})\b", re.IGNORECASE),
+)
+_ENTITY_STOPWORDS = {
+    "agentic",
+    "cloud",
+    "company",
+    "exclusive",
+    "founder",
+    "funding",
+    "global",
+    "million",
+    "series",
+    "startup",
+    "techcrunch",
+    "artificial",
+    "intelligence",
+    "computer",
+    "computing",
+    "platform",
+    "pre-ipo",
+    "ipo",
+    "rfi",
+    "wsj",
+    "finimize",
+    "beebeez",
+}
+
 
 def _clean_text(value: Any, max_chars: int) -> str:
     text = unescape(str(value or ""))
     text = re.sub(r"<[^>]+>", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text[:max_chars]
+
+
+def funding_event_key(title: str, tag: str) -> Optional[str]:
+    """Return a conservative company key for cross-source funding duplicates."""
+    if not str(tag).startswith("A级") or not _FUNDING_WORDS.search(title or ""):
+        return None
+    for pattern in _ENTITY_PATTERNS:
+        match = pattern.search(title)
+        if match:
+            entity = match.group(1).strip(".-").casefold()
+            if entity and entity not in _ENTITY_STOPWORDS:
+                return f"funding:{entity}"
+    tokens = {
+        token.strip(".-").casefold()
+        for token in re.findall(r"[A-Za-z][A-Za-z0-9.-]{2,}", title or "")
+    }
+    candidates = sorted(
+        token
+        for token in tokens
+        if token not in _ENTITY_STOPWORDS and not token.isdigit()
+    )
+    if len(candidates) == 1:
+        return f"funding:{candidates[0]}"
+    return None
 
 
 def _validate_choice(answer: Any, choices: Dict[str, str]) -> Optional[Dict[str, Any]]:

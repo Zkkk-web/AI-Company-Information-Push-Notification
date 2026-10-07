@@ -493,6 +493,9 @@ class AIFilterPipeline:
             })
             tag_groups[tag_name]["count"] += 1
 
+        if self._filter_method == "jev":
+            tag_groups = self._deduplicate_jev_results(tag_groups)
+
         if self._priority_sort_enabled:
             sorted_tags = sorted(
                 tag_groups.values(),
@@ -512,6 +515,44 @@ class AIFilterPipeline:
             total_processed=total_processed,
             success=True,
         )
+
+    @staticmethod
+    def _deduplicate_jev_results(tag_groups: Dict[str, Dict]) -> Dict[str, Dict]:
+        """Keep one high-confidence report per company funding event."""
+        from trendradar.ai.jev_filter import funding_event_key
+
+        flattened = []
+        for tag_name, tag_data in tag_groups.items():
+            for item in tag_data.get("items", []):
+                flattened.append((tag_name, tag_data, item))
+        flattened.sort(
+            key=lambda entry: float(entry[2].get("relevance_score", 0)),
+            reverse=True,
+        )
+
+        seen_events = set()
+        kept_by_tag: Dict[str, List[Dict]] = {name: [] for name in tag_groups}
+        duplicate_count = 0
+        for tag_name, _tag_data, item in flattened:
+            event_key = funding_event_key(item.get("title", ""), tag_name)
+            if event_key and event_key in seen_events:
+                duplicate_count += 1
+                continue
+            if event_key:
+                seen_events.add(event_key)
+            kept_by_tag[tag_name].append(item)
+
+        deduplicated = {}
+        for tag_name, tag_data in tag_groups.items():
+            kept_items = kept_by_tag[tag_name]
+            if not kept_items:
+                continue
+            tag_data["items"] = kept_items
+            tag_data["count"] = len(kept_items)
+            deduplicated[tag_name] = tag_data
+        if duplicate_count:
+            print(f"[Jev筛选] 同事件去重：合并 {duplicate_count} 条跨媒体重复报道")
+        return deduplicated
 
     def convert_to_report_data(
         self,

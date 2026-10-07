@@ -6,6 +6,7 @@ from trendradar.ai.jev_filter import (
     NO_MATCH,
     SIGNAL_CHOICES,
     JevFilter,
+    funding_event_key,
 )
 
 
@@ -152,6 +153,42 @@ class JevFilterTest(unittest.TestCase):
         self.assertEqual(result["change_ratio"], 1.0)
         self.assertEqual(result["add"], [])
         self.assertEqual(result["remove"], [])
+
+    def test_funding_event_key_groups_cross_source_reports(self):
+        tag = "A级·融资达标"
+        titles = (
+            "AI computing startup Lambda to raise $4B ahead of planned IPO",
+            "AI新云厂商Lambda拟融资40亿美元，目标2027年上市",
+            "英伟达投资的 AI 计算初创公司 Lambda pre-IPO 融资 40 亿美元",
+        )
+        self.assertEqual(
+            {funding_event_key(title, tag) for title in titles},
+            {"funding:lambda"},
+        )
+        self.assertIsNone(funding_event_key("Lambda 发布新版控制台", tag))
+
+    def test_pipeline_keeps_highest_confidence_duplicate(self):
+        groups = {
+            "A级·融资达标": {
+                "tag": "A级·融资达标",
+                "count": 2,
+                "items": [
+                    {
+                        "title": "AI startup Vinci raises $250M",
+                        "relevance_score": 0.91,
+                    },
+                    {
+                        "title": "Startup Vinci reels in $250M",
+                        "relevance_score": 0.97,
+                    },
+                ],
+            }
+        }
+        result = AIFilterPipeline._deduplicate_jev_results(groups)
+        self.assertEqual(result["A级·融资达标"]["count"], 1)
+        self.assertEqual(
+            result["A级·融资达标"]["items"][0]["relevance_score"], 0.97
+        )
 
 
 class ClassifierInputPipelineTest(unittest.TestCase):
