@@ -52,6 +52,7 @@ jobs:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
           AI_API_BASE: ${{ secrets.AI_API_BASE }}
+          DEBUG: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
           GITHUB_ACTIONS: true
         run: uv run python -m trendradar
 

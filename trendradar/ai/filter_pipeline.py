@@ -191,6 +191,14 @@ class AIFilterPipeline:
                 tag_counts[key] = tag_counts.get(key, 0) + 1
             for key, count in sorted(tag_counts.items()):
                 print(f"[AI筛选][DEBUG]   {key}: {count} 条")
+            for result in all_results:
+                print(
+                    "[AI筛选][DEBUG]   "
+                    f"[{result.get('tag', '?')}] "
+                    f"score={result.get('relevance_score', 0):.3f} "
+                    f"[{result.get('source_name', result.get('source_id', '?'))}] "
+                    f"{result.get('title', '')}"
+                )
 
         return self._build_filter_result(all_results, active_tags, total_pending)
 
