@@ -20,7 +20,7 @@ import requests
 
 
 JEV_API_URL = "https://api.typesafe.ai/v1/systemone"
-POLICY_VERSION = "startup-intelligence-jev-v1"
+POLICY_VERSION = "startup-intelligence-jev-v2"
 NO_MATCH = "NO_MATCH"
 
 SIGNAL_CHOICES = {
@@ -39,12 +39,16 @@ SIGNAL_CHOICES = {
         "tag": "B级·高管创业或加入团队",
         "description": (
             "阿里、腾讯、字节、美团、快手、小红书、拼多多、百度、京东、华为、小米、"
-            "大疆及头部 AI/海外大厂高管创业、加入或组建相关新团队。"
+            "大疆及头部 AI/海外大厂高管离开原公司后创业，或加入、组建独立创业团队。"
+            "内部晋升、内部调岗、人物盘点和泛人才报道不属于此项。"
         ),
     },
     "B_NEW_BUSINESS": {
         "tag": "B级·新业务或新市场",
-        "description": "相关 AI 公司开拓新业务、进入新市场或出海。",
+        "description": (
+            "相关 AI 公司在公司战略层面开辟新的业务线、进入新的地域/客户市场或正式出海。"
+            "普通功能更新、版本发布、产品集成、开放协议、扩大模型访问权限不属于此项。"
+        ),
     },
 }
 
@@ -61,6 +65,8 @@ JUDGMENT_RULES = [
     "目标赛道仅限 AI SaaS/Productivity、AI 内容/娱乐/游戏/陪伴、AI+消费/全球互联网、AI+硬件。",
     "公司融资和基金自身募资是两件事；基金设立、基金募集、基金关账必须选择 NO_MATCH。",
     "只有明确证据支持时才选择匹配项；不得根据公司名或媒体来源猜测金额、投资方或人员身份。",
+    "高管信号必须明确发生离职创业、加入另一家创业公司或组建独立创业团队；内部晋升、内部调岗、人物盘点和人才名单选择 NO_MATCH。",
+    "新业务/新市场必须是公司级业务线、地域市场、客户市场或出海变化；功能更新、版本发布、产品集成、开放协议、权限开放和日常产品迭代选择 NO_MATCH。",
     "若同时符合多个选项，只选证据最强的一项；优先级依次为重点机构投资、融资达标、高管动向、新业务/新市场。",
 ]
 
@@ -158,10 +164,6 @@ class JevFilter:
         keep = [desired_by_name[name] for name in desired_names & old_names]
         add = [desired_by_name[name] for name in desired_names - old_names]
         remove = sorted(old_names - desired_names)
-        changed = len(add) + len(remove)
-        change_ratio = min(
-            1.0, changed / max(len(old_names), len(desired_names), 1)
-        )
         desired_order = {item["tag"]: index for index, item in enumerate(desired)}
         keep.sort(key=lambda item: desired_order[item["tag"]])
         add.sort(key=lambda item: desired_order[item["tag"]])
@@ -169,7 +171,10 @@ class JevFilter:
             "keep": keep,
             "add": add,
             "remove": remove,
-            "change_ratio": change_ratio,
+            # This method is called only after the policy/content hash changes.
+            # Even unchanged tag names can have materially different criteria, so
+            # every Jev policy change must invalidate earlier judgments.
+            "change_ratio": 1.0,
         }
 
     def _build_request(self, titles: List[Dict[str, Any]]) -> Dict[str, Any]:

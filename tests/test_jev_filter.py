@@ -142,6 +142,17 @@ class JevFilterTest(unittest.TestCase):
         self.assertEqual(len(result["add"]), 4)
         self.assertEqual(result["change_ratio"], 1.0)
 
+    def test_policy_change_reclassifies_even_when_tag_names_match(self):
+        jev_filter = JevFilter({"API_KEY": "test-key"})
+        old_tags = [
+            {"id": index, "tag": value["tag"]}
+            for index, value in enumerate(SIGNAL_CHOICES.values(), start=1)
+        ]
+        result = jev_filter.update_tags(old_tags, "unused")
+        self.assertEqual(result["change_ratio"], 1.0)
+        self.assertEqual(result["add"], [])
+        self.assertEqual(result["remove"], [])
+
 
 class ClassifierInputPipelineTest(unittest.TestCase):
     def test_rss_summary_and_url_reach_classifier(self):
