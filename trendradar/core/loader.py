@@ -437,6 +437,7 @@ def _load_webhook_config(config_data: Dict) -> Dict:
     return {
         # 飞书
         "FEISHU_WEBHOOK_URL": _get_env_str("FEISHU_WEBHOOK_URL") or feishu.get("webhook_url", ""),
+        "FEISHU_OUTBOX_PATH": _get_env_str("FEISHU_OUTBOX_PATH") or feishu.get("outbox_path", ""),
         # 钉钉
         "DINGTALK_WEBHOOK_URL": _get_env_str("DINGTALK_WEBHOOK_URL") or dingtalk.get("webhook_url", ""),
         # 企业微信
@@ -475,6 +476,9 @@ def _print_notification_sources(config: Dict) -> None:
         count = min(len(accounts), max_accounts)
         source = "环境变量" if os.environ.get("FEISHU_WEBHOOK_URL") else "配置文件"
         notification_sources.append(f"飞书({source}, {count}个账号)")
+
+    if config.get("FEISHU_OUTBOX_PATH"):
+        notification_sources.append("飞书待发送文件(本机应用机器人交付)")
 
     if config["DINGTALK_WEBHOOK_URL"]:
         accounts = parse_multi_account_config(config["DINGTALK_WEBHOOK_URL"])

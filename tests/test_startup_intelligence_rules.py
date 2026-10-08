@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 import yaml
 
@@ -76,6 +77,14 @@ class StartupIntelligenceRulesTest(unittest.TestCase):
         self.assertTrue(
             all(not feed.get("enabled", True) for feed in feeds if feed["id"] in staged_wechat_ids)
         )
+
+    def test_production_workflow_exports_outbox_without_old_webhook(self):
+        workflow = Path(".github/workflows/crawler.yml").read_text(encoding="utf-8")
+        self.assertIn("FEISHU_OUTBOX_PATH", workflow)
+        self.assertIn("actions/upload-artifact@v4", workflow)
+        self.assertIn("retention-days: 3", workflow)
+        self.assertNotIn("secrets.FEISHU_WEBHOOK_URL", workflow)
+        self.assertNotIn("schedule:", workflow)
 
 
 if __name__ == "__main__":

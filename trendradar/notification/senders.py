@@ -93,6 +93,39 @@ SMTP_CONFIGS = {
 }
 
 
+def build_feishu_batches(
+    report_data: Dict,
+    report_type: str,
+    update_info: Optional[Dict] = None,
+    mode: str = "daily",
+    *,
+    batch_size: int = 29000,
+    split_content_func: Callable = None,
+    rss_items: Optional[list] = None,
+    rss_new_items: Optional[list] = None,
+    ai_analysis: Any = None,
+    standalone_data: Optional[Dict] = None,
+) -> list[str]:
+    """Render and split one Feishu delivery without choosing a transport."""
+    ai_content = _render_ai_analysis(ai_analysis, "feishu") if ai_analysis else None
+    ai_stats = _extract_ai_stats(ai_analysis)
+    header_reserve = get_max_batch_header_size("feishu")
+    batches = split_content_func(
+        report_data,
+        "feishu",
+        update_info,
+        max_bytes=batch_size - header_reserve,
+        mode=mode,
+        rss_items=rss_items,
+        rss_new_items=rss_new_items,
+        ai_content=ai_content,
+        standalone_data=standalone_data,
+        ai_stats=ai_stats,
+        report_type=report_type,
+    )
+    return add_batch_headers(batches, "feishu", batch_size)
+
+
 def send_to_feishu(
     webhook_url: str,
     report_data: Dict,
@@ -141,28 +174,18 @@ def send_to_feishu(
     # 日志前缀
     log_prefix = f"飞书{account_label}" if account_label else "飞书"
 
-    # 渲染 AI 分析内容并提取统计数据
-    ai_content = _render_ai_analysis(ai_analysis, "feishu") if ai_analysis else None
-    ai_stats = _extract_ai_stats(ai_analysis)
-
-    # 预留批次头部空间，避免添加头部后超限
-    header_reserve = get_max_batch_header_size("feishu")
-    batches = split_content_func(
-        report_data,
-        "feishu",
-        update_info,
-        max_bytes=batch_size - header_reserve,
+    batches = build_feishu_batches(
+        report_data=report_data,
+        report_type=report_type,
+        update_info=update_info,
         mode=mode,
+        batch_size=batch_size,
+        split_content_func=split_content_func,
         rss_items=rss_items,
         rss_new_items=rss_new_items,
-        ai_content=ai_content,
+        ai_analysis=ai_analysis,
         standalone_data=standalone_data,
-        ai_stats=ai_stats,
-        report_type=report_type,
     )
-
-    # 统一添加批次头部（已预留空间，不会超限）
-    batches = add_batch_headers(batches, "feishu", batch_size)
 
     print(f"{log_prefix}消息分为 {len(batches)} 批次发送 [{report_type}]")
 
@@ -225,6 +248,58 @@ def send_to_feishu(
     print(f"{log_prefix}所有 {len(batches)} 批次发送完成 [{report_type}]")
 
     return True
+
+
+def export_feishu_outbox(
+    outbox_path: str,
+    report_data: Dict,
+    report_type: str,
+    update_info: Optional[Dict] = None,
+    mode: str = "daily",
+    *,
+    batch_size: int = 29000,
+    split_content_func: Callable = None,
+    rss_items: Optional[list] = None,
+    rss_new_items: Optional[list] = None,
+    ai_analysis: Any = None,
+    standalone_data: Optional[Dict] = None,
+) -> bool:
+    """Write Feishu-formatted batches for a trusted local delivery worker."""
+    try:
+        batches = build_feishu_batches(
+            report_data=report_data,
+            report_type=report_type,
+            update_info=update_info,
+            mode=mode,
+            batch_size=batch_size,
+            split_content_func=split_content_func,
+            rss_items=rss_items,
+            rss_new_items=rss_new_items,
+            ai_analysis=ai_analysis,
+            standalone_data=standalone_data,
+        )
+        path = Path(outbox_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "schema_version": 1,
+            "channel": "feishu",
+            "report_type": report_type,
+            "batches": [
+                {"index": index, "content": content}
+                for index, content in enumerate(batches, start=1)
+            ],
+        }
+        temp_path = path.with_suffix(f"{path.suffix}.tmp")
+        temp_path.write_text(
+            json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8",
+        )
+        temp_path.replace(path)
+        print(f"飞书待发送文件已生成：{len(batches)} 个批次 [{report_type}]")
+        return True
+    except Exception as error:
+        print(f"飞书待发送文件生成失败 [{report_type}]：{error}")
+        return False
 
 
 def send_to_dingtalk(

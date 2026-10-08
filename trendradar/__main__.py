@@ -161,6 +161,7 @@ class NewsAnalyzer:
         return any(
             [
                 cfg["FEISHU_WEBHOOK_URL"],
+                cfg.get("FEISHU_OUTBOX_PATH"),
                 cfg["DINGTALK_WEBHOOK_URL"],
                 cfg["WEWORK_WEBHOOK_URL"],
                 (cfg["TELEGRAM_BOT_TOKEN"] and cfg["TELEGRAM_CHAT_ID"]),

@@ -26,6 +26,7 @@ from .senders import (
     send_to_bark,
     send_to_dingtalk,
     send_to_email,
+    export_feishu_outbox,
     send_to_feishu,
     send_to_ntfy,
     send_to_slack,
@@ -303,6 +304,12 @@ class NotificationDispatcher:
                 ai_analysis, display_regions, standalone_data
             )
 
+        if self.config.get("FEISHU_OUTBOX_PATH"):
+            results["feishu_outbox"] = self._export_feishu_outbox(
+                report_data, report_type, update_info, mode, rss_items, rss_new_items,
+                ai_analysis, display_regions, standalone_data
+            )
+
         # 钉钉
         if self.config.get("DINGTALK_WEBHOOK_URL"):
             results["dingtalk"] = self._send_dingtalk(
@@ -457,6 +464,36 @@ class NotificationDispatcher:
                 display_regions=display_regions or {},
                 standalone_data=sd,
             ),
+        )
+
+    def _export_feishu_outbox(
+        self,
+        report_data: Dict,
+        report_type: str,
+        update_info: Optional[Dict],
+        mode: str,
+        rss_items: Optional[List[Dict]] = None,
+        rss_new_items: Optional[List[Dict]] = None,
+        ai_analysis: Optional[AIAnalysisResult] = None,
+        display_regions: Optional[Dict] = None,
+        standalone_data: Optional[Dict] = None,
+    ) -> bool:
+        """Export Feishu batches for delivery by the local authenticated bot."""
+        rd, ri, rn, ai, sd = self._apply_display_regions(
+            report_data, display_regions, rss_items, rss_new_items, ai_analysis, standalone_data
+        )
+        return export_feishu_outbox(
+            outbox_path=self.config["FEISHU_OUTBOX_PATH"],
+            report_data=rd,
+            report_type=report_type,
+            update_info=update_info,
+            mode=mode,
+            batch_size=self.config.get("FEISHU_BATCH_SIZE", 29000),
+            split_content_func=self.split_content_func,
+            rss_items=ri,
+            rss_new_items=rn,
+            ai_analysis=ai,
+            standalone_data=sd,
         )
 
     def _send_dingtalk(
@@ -830,4 +867,3 @@ class NotificationDispatcher:
             custom_smtp_port=self.config.get("EMAIL_SMTP_PORT", ""),
             get_time_func=self.get_time_func,
         )
-
