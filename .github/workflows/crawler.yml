@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       send_notifications:
-        description: "Send qualifying alerts to the configured Feishu webhook"
+        description: "Prepare qualifying Feishu batches for the local delivery bot"
         required: true
         default: false
         type: boolean
@@ -48,8 +48,8 @@ jobs:
 
       - name: Run crawler
         env:
-          # Every run is explicitly dispatched. Notifications stay off unless requested.
-          FEISHU_WEBHOOK_URL: ${{ inputs.send_notifications && secrets.FEISHU_WEBHOOK_URL || '' }}
+          # Production delivery is completed locally by the authenticated Feishu app bot.
+          FEISHU_OUTBOX_PATH: ${{ inputs.send_notifications && 'delivery/feishu-outbox.json' || '' }}
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
           AI_FILTER_ENABLED: ${{ secrets.AI_FILTER_ENABLED }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
@@ -58,6 +58,15 @@ jobs:
           DEBUG: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
           GITHUB_ACTIONS: true
         run: uv run python -m trendradar
+
+      - name: Upload Feishu delivery outbox
+        if: ${{ always() && inputs.send_notifications }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: feishu-outbox-${{ github.run_id }}
+          path: delivery/feishu-outbox.json
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Save history
         if: always()

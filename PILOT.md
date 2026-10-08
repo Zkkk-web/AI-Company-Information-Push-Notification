@@ -39,16 +39,16 @@ uv run python -m unittest discover -s tests -v
 uv run python -m trendradar
 ```
 
-最后一条会真实抓取，但没配置 webhook 时不会发群消息。
+最后一条会真实抓取；未配置 Webhook 或 `FEISHU_OUTBOX_PATH` 时不会发群消息或生成待发送文件。
 
 ## GitHub Actions
 
-GitHub 工作流只保留显式手动触发。生产环境由本机 Codex 定时任务在每天北京时间 09:30 主动触发一次，并传入 `send_notifications=true`；原 GitHub `schedule` 已关闭，避免平台排队延迟到下午后又重复推送。执行时本机和 Codex 必须在线。
+GitHub 工作流只保留显式手动触发。生产环境由本机 Codex 定时任务在每天北京时间 09:30 主动触发一次，并传入 `send_notifications=true`；工作流把待发送的飞书内容保存为保留 3 天的临时 artifact，本机随后下载并使用已登录的飞书应用机器人发送到外部群。原 GitHub `schedule` 已关闭，避免平台排队延迟到下午后又重复推送。执行时本机、Codex 和 `lark-cli` 登录态必须可用。
 
 把本分支放到你控制的 GitHub 仓库后配置：
 
-- 必需：`FEISHU_WEBHOOK_URL`，目标飞书群机器人的 webhook。
-- Jev 测试：仓库 Secret `TYPESAFE_API_KEY`。手动 Actions 默认不传入飞书 webhook，因此只测试抓取和判断；只有显式勾选 `send_notifications` 才会真实发群消息。每天 09:30 的 Codex 定时任务会显式勾选该选项。
+- 飞书投递不再读取 `FEISHU_WEBHOOK_URL`，避免旧群专属 Webhook 继续误投。目标群由本机自动化固定为 `oc_1a8b225c9f11385a73a6a88fa601cb00`。
+- Jev 测试：仓库 Secret `TYPESAFE_API_KEY`。手动 Actions 默认只测试抓取和判断；只有显式勾选 `send_notifications` 才会生成待发送 artifact。每天 09:30 的 Codex 定时任务会显式勾选、下载并完成真实投递。
 - 通用生成式 AI 筛选仍可选：`AI_FILTER_ENABLED=true`、`AI_API_KEY`、`AI_MODEL`、`AI_API_BASE`。
 
 试跑用 Actions cache 保存 SQLite 去重记录；正式长期运行时再换 R2/S3 或常驻 Docker。Actions cache 不是永久数据库。
