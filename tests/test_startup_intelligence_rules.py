@@ -86,6 +86,13 @@ class StartupIntelligenceRulesTest(unittest.TestCase):
         self.assertNotIn("secrets.FEISHU_WEBHOOK_URL", workflow)
         self.assertNotIn("schedule:", workflow)
 
+    def test_production_enables_company_centric_feishu_delivery(self):
+        with open("config/config.yaml", encoding="utf-8") as config_file:
+            feishu = yaml.safe_load(config_file)["notification"]["channels"]["feishu"]
+
+        self.assertTrue(feishu["company_intelligence"])
+        self.assertTrue(feishu["fetch_article_text"])
+
 
 if __name__ == "__main__":
     unittest.main()

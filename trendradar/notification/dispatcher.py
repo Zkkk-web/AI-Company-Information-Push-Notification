@@ -494,6 +494,8 @@ class NotificationDispatcher:
             rss_new_items=rn,
             ai_analysis=ai,
             standalone_data=sd,
+            company_intelligence=self.config.get("FEISHU_COMPANY_INTELLIGENCE", False),
+            fetch_article_text=self.config.get("FEISHU_FETCH_ARTICLE_TEXT", False),
         )
 
     def _send_dingtalk(
