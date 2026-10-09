@@ -434,10 +434,23 @@ def _load_webhook_config(config_data: Dict) -> Dict:
     slack = channels.get("slack", {})
     generic = channels.get("generic_webhook", {})
 
+    feishu_company_intelligence = _get_env_bool("FEISHU_COMPANY_INTELLIGENCE")
+    feishu_fetch_article_text = _get_env_bool("FEISHU_FETCH_ARTICLE_TEXT")
+
     return {
         # 飞书
         "FEISHU_WEBHOOK_URL": _get_env_str("FEISHU_WEBHOOK_URL") or feishu.get("webhook_url", ""),
         "FEISHU_OUTBOX_PATH": _get_env_str("FEISHU_OUTBOX_PATH") or feishu.get("outbox_path", ""),
+        "FEISHU_COMPANY_INTELLIGENCE": (
+            feishu_company_intelligence
+            if feishu_company_intelligence is not None
+            else feishu.get("company_intelligence", False)
+        ),
+        "FEISHU_FETCH_ARTICLE_TEXT": (
+            feishu_fetch_article_text
+            if feishu_fetch_article_text is not None
+            else feishu.get("fetch_article_text", False)
+        ),
         # 钉钉
         "DINGTALK_WEBHOOK_URL": _get_env_str("DINGTALK_WEBHOOK_URL") or dingtalk.get("webhook_url", ""),
         # 企业微信

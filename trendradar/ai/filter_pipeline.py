@@ -646,6 +646,7 @@ class AIFilterPipeline:
 
                 title_entry = {
                     "title": item.get("title", ""),
+                    "summary": item.get("summary", ""),
                     "source_name": item.get("source_name", ""),
                     "url": item.get("url", ""),
                     "mobile_url": item.get("mobile_url", ""),

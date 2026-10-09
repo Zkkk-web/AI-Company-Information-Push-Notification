@@ -18,6 +18,7 @@
 import smtplib
 import time
 import json
+import re
 from datetime import datetime
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
@@ -31,6 +32,13 @@ import requests
 
 from .batch import add_batch_headers, get_max_batch_header_size
 from .formatters import convert_markdown_to_mrkdwn, strip_markdown
+
+
+def sanitize_feishu_post_markdown(content: str) -> str:
+    """Remove interactive-card-only HTML before app-bot post delivery."""
+    content = re.sub(r"<font[^>]*>", "", content, flags=re.IGNORECASE)
+    content = re.sub(r"</font>", "", content, flags=re.IGNORECASE)
+    return content.replace("&#91;", "[").replace("&#93;", "]")
 
 
 def _extract_ai_stats(ai_analysis) -> Optional[Dict]:
@@ -263,21 +271,35 @@ def export_feishu_outbox(
     rss_new_items: Optional[list] = None,
     ai_analysis: Any = None,
     standalone_data: Optional[Dict] = None,
+    company_intelligence: bool = False,
+    fetch_article_text: bool = False,
 ) -> bool:
     """Write Feishu-formatted batches for a trusted local delivery worker."""
     try:
-        batches = build_feishu_batches(
-            report_data=report_data,
-            report_type=report_type,
-            update_info=update_info,
-            mode=mode,
-            batch_size=batch_size,
-            split_content_func=split_content_func,
-            rss_items=rss_items,
-            rss_new_items=rss_new_items,
-            ai_analysis=ai_analysis,
-            standalone_data=standalone_data,
-        )
+        batches = []
+        if company_intelligence:
+            from trendradar.intelligence.company import build_company_intelligence_batches
+
+            batches = build_company_intelligence_batches(
+                report_data.get("stats", []),
+                rss_items,
+                batch_size=batch_size,
+                fetch_full_text=fetch_article_text,
+            )
+        if not batches:
+            batches = build_feishu_batches(
+                report_data=report_data,
+                report_type=report_type,
+                update_info=update_info,
+                mode=mode,
+                batch_size=batch_size,
+                split_content_func=split_content_func,
+                rss_items=rss_items,
+                rss_new_items=rss_new_items,
+                ai_analysis=ai_analysis,
+                standalone_data=standalone_data,
+            )
+        batches = [sanitize_feishu_post_markdown(content) for content in batches]
         path = Path(outbox_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
