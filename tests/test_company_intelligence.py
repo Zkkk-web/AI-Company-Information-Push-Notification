@@ -151,6 +151,22 @@ class CompanyIntelligenceTest(unittest.TestCase):
 
         self.assertEqual(signal.business_description, "企业 AI 客服")
 
+    def test_rejects_question_clause_mistaken_for_business(self):
+        signal = extract_company_signal(
+            {
+                "title": (
+                    "Exclusive: Gudea Lands $7M To Predict Which Online Narratives "
+                    "Will Go Viral"
+                ),
+                "summary": "",
+                "source_name": "测试来源",
+                "url": "https://example.com/gudea",
+            },
+            "A级·融资达标",
+        )
+
+        self.assertEqual(signal.business_description, "")
+
     def test_does_not_append_following_chinese_grammar_to_a_person_name(self):
         signal = extract_company_signal(
             {
@@ -335,7 +351,7 @@ class CompanyIntelligenceTest(unittest.TestCase):
         content = batches[0]
         self.assertIn("**公司：** Mecka AI", content)
         self.assertIn(
-            "**业务与方向：** Mecka AI 的主要业务是 Robot data，属于 AI 硬件应用方向。",
+            "**业务与方向：** Mecka AI的主要业务是 Robot data，属于 AI 硬件应用方向。",
             content,
         )
         self.assertIn("**融资阶段：** 暂未从公开报道确认", content)
@@ -367,7 +383,7 @@ class CompanyIntelligenceTest(unittest.TestCase):
         content = build_company_intelligence_batches([], stats)[0]
 
         self.assertIn(
-            "**业务与方向：** 暂未从公开报道确认 Arena 的主要业务与所属方向。",
+            "**业务与方向：** 暂未从公开报道确认Arena的主要业务与所属方向。",
             content,
         )
 
