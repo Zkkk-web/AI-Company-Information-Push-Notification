@@ -275,15 +275,57 @@ class CompanyIntelligenceTest(unittest.TestCase):
         self.assertEqual(len(batches), 1)
         content = batches[0]
         self.assertIn("**公司：** Mecka AI", content)
-        self.assertIn("**主要业务：** Robot data", content)
-        self.assertIn("**所属方向：** AI 硬件应用", content)
+        self.assertIn("**业务与方向：** Robot data（AI 硬件应用）", content)
         self.assertIn("**融资阶段：** 暂未从公开报道确认", content)
-        self.assertIn("**总部所在地：** 暂未从公开报道确认", content)
-        self.assertIn("**核心团队所在地：** 暂未从公开报道确认", content)
+        self.assertIn("**所在地：** 暂未从公开报道确认", content)
+        self.assertNotIn("**主要业务：**", content)
+        self.assertNotIn("**所属方向：**", content)
+        self.assertNotIn("**总部所在地：**", content)
+        self.assertNotIn("**核心团队所在地：**", content)
         self.assertIn("**资方：** 红杉资本 / Sequoia", content)
         self.assertIn("**团队：** 暂未从公开报道确认", content)
         self.assertIn("[TechCrunch Venture](https://example.com/mecka)", content)
         self.assertNotIn("<font", content)
+
+    def test_combines_headquarters_and_team_locations_without_losing_meaning(self):
+        stats = [
+            {
+                "word": "A级·融资达标",
+                "titles": [
+                    {
+                        "title": "SameCity AI完成A轮融资",
+                        "summary": "SameCity AI总部位于北京，核心团队位于北京。",
+                        "source_name": "测试来源",
+                        "url": "https://example.com/same-city",
+                    },
+                    {
+                        "title": "SplitCity AI完成A轮融资",
+                        "summary": "SplitCity AI总部位于北京，核心团队位于上海。",
+                        "source_name": "测试来源",
+                        "url": "https://example.com/split-city",
+                    },
+                    {
+                        "title": "HeadquartersOnly AI完成A轮融资",
+                        "summary": "HeadquartersOnly AI总部位于深圳。",
+                        "source_name": "测试来源",
+                        "url": "https://example.com/headquarters-only",
+                    },
+                    {
+                        "title": "TeamOnly AI完成A轮融资",
+                        "summary": "TeamOnly AI核心团队位于杭州。",
+                        "source_name": "测试来源",
+                        "url": "https://example.com/team-only",
+                    },
+                ],
+            }
+        ]
+
+        content = build_company_intelligence_batches([], stats)[0]
+
+        self.assertIn("**所在地：** 北京（总部及核心团队）", content)
+        self.assertIn("**所在地：** 总部：北京；核心团队：上海", content)
+        self.assertIn("**所在地：** 深圳（总部）", content)
+        self.assertIn("**所在地：** 杭州（核心团队）", content)
 
     def test_extracts_company_after_startup_when_investor_leads_title(self):
         signal = extract_company_signal(

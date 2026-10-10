@@ -662,20 +662,35 @@ def _format_source(source: SignalSource) -> str:
     return label
 
 
+def _format_business_and_sector(signal: CompanySignal) -> str:
+    business = signal.business_description
+    sector = signal.sector
+    if business and sector:
+        return business if business == sector else f"{business}（{sector}）"
+    return business or sector or "暂未从公开报道确认"
+
+
+def _format_company_locations(signal: CompanySignal) -> str:
+    headquarters = signal.headquarters
+    team_locations = signal.team_locations
+    if headquarters and team_locations:
+        if set(headquarters) == set(team_locations):
+            return f"{'、'.join(headquarters)}（总部及核心团队）"
+        return (
+            f"总部：{'、'.join(headquarters)}；"
+            f"核心团队：{'、'.join(team_locations)}"
+        )
+    if headquarters:
+        return f"{'、'.join(headquarters)}（总部）"
+    if team_locations:
+        return f"{'、'.join(team_locations)}（核心团队）"
+    return "暂未从公开报道确认"
+
+
 def _format_signal(signal: CompanySignal, index: int) -> str:
-    business = signal.business_description or "暂未从公开报道确认"
-    sector = signal.sector or "暂未从公开报道确认"
+    business_and_sector = _format_business_and_sector(signal)
     funding_stage = signal.funding_stage or "暂未从公开报道确认"
-    headquarters = (
-        "、".join(signal.headquarters)
-        if signal.headquarters
-        else "暂未从公开报道确认"
-    )
-    team_locations = (
-        "、".join(signal.team_locations)
-        if signal.team_locations
-        else "暂未从公开报道确认"
-    )
+    locations = _format_company_locations(signal)
     investors = "、".join(signal.investors) if signal.investors else "暂未从公开报道确认"
     team = "；".join(signal.team) if signal.team else "暂未从公开报道确认"
     sources = "、".join(_format_source(source) for source in signal.sources[:4])
@@ -683,11 +698,9 @@ def _format_signal(signal: CompanySignal, index: int) -> str:
         sources += f" 等 {len(signal.sources)} 个来源"
     return (
         f"{index}. **公司：** {signal.company_name}\n"
-        f"   - **主要业务：** {business}\n"
-        f"   - **所属方向：** {sector}\n"
+        f"   - **业务与方向：** {business_and_sector}\n"
         f"   - **融资阶段：** {funding_stage}\n"
-        f"   - **总部所在地：** {headquarters}\n"
-        f"   - **核心团队所在地：** {team_locations}\n"
+        f"   - **所在地：** {locations}\n"
         f"   - **级别：** {signal.level}\n"
         f"   - **触发事件：** {signal.event}\n"
         f"   - **资方：** {investors}\n"
