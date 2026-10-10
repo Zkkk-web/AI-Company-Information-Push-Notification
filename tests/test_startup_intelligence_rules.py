@@ -92,6 +92,8 @@ class StartupIntelligenceRulesTest(unittest.TestCase):
 
         self.assertTrue(feishu["company_intelligence"])
         self.assertTrue(feishu["fetch_article_text"])
+        self.assertIn("Anthropic", feishu["mature_company_exclusions"])
+        self.assertIn("DeepSeek", feishu["mature_company_exclusions"])
 
 
 if __name__ == "__main__":

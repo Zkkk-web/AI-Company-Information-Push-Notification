@@ -451,6 +451,9 @@ def _load_webhook_config(config_data: Dict) -> Dict:
             if feishu_fetch_article_text is not None
             else feishu.get("fetch_article_text", False)
         ),
+        "FEISHU_MATURE_COMPANY_EXCLUSIONS": feishu.get(
+            "mature_company_exclusions", []
+        ),
         # 钉钉
         "DINGTALK_WEBHOOK_URL": _get_env_str("DINGTALK_WEBHOOK_URL") or dingtalk.get("webhook_url", ""),
         # 企业微信

@@ -35,16 +35,23 @@ class CompanySignal:
     company_name: str
     level: str
     event: str
+    business_description: str = ""
+    sector: str = ""
+    funding_stage: str = ""
+    headquarters: List[str] = field(default_factory=list)
+    team_locations: List[str] = field(default_factory=list)
     investors: List[str] = field(default_factory=list)
     team: List[str] = field(default_factory=list)
     sources: List[SignalSource] = field(default_factory=list)
     confidence: float = 0.0
     raw_text: str = ""
+    exclusion_reason: str = ""
 
 
 _OUTLET_SUFFIX = re.compile(
     r"\s+(?:-|\||—)\s+(?:TechCrunch|Dealroom|CryptoRank|Wowtale|Law\.com|"
-    r"新浪网|搜狐网|财联社|动脉网|泰伯网|电子工程专辑|21财经|SiliconANGLE).*$",
+    r"EU-Startups|The Next Web|新浪网|搜狐网|财联社|动脉网|泰伯网|"
+    r"电子工程专辑|21财经|SiliconANGLE).*$",
     re.IGNORECASE,
 )
 _SPACE = re.compile(r"\s+")
@@ -84,6 +91,56 @@ _ENGLISH_STOP_NAMES = {
     "Legal Services Startup",
     "Robot Data Startup",
 }
+
+_FUNDING_STAGE_RANK = {
+    "": 0,
+    "战略融资": 5,
+    "Pre-Seed": 10,
+    "天使轮": 15,
+    "种子轮": 20,
+    "Pre-A轮": 25,
+    "A轮": 30,
+    "A+轮": 31,
+    "Pre-B轮": 35,
+    "B轮": 40,
+    "B+轮": 41,
+    "Pre-C轮": 45,
+    "C轮": 50,
+    "C+轮": 51,
+    "D轮": 60,
+    "E轮": 70,
+    "F轮": 80,
+    "G轮": 90,
+    "H轮": 100,
+    "Pre-IPO": 110,
+    "已上市": 120,
+}
+
+_SECTOR_RULES = [
+    (
+        "AI 基础设施",
+        re.compile(r"基础设施|平台级底座|底座能力|infrastructure|foundation platform", re.I),
+    ),
+    (
+        "AI 硬件应用",
+        re.compile(
+            r"机器人|具身|硬件|芯片|传感器|VCSEL|robots?|robotics?|hardware|semiconductor",
+            re.I,
+        ),
+    ),
+    (
+        "AI 内容/娱乐/游戏/陪伴",
+        re.compile(r"内容|播客|音频|娱乐|游戏|陪伴|podcast|audio|content|gaming?", re.I),
+    ),
+    (
+        "AI+消费/全球互联网产品",
+        re.compile(r"消费|品牌|电商|保险顾问|房贷|consumer|brand|e-?commerce|mortgage", re.I),
+    ),
+    (
+        "AI SaaS / Productivity",
+        re.compile(r"SaaS|智能体|代理|生产力|法律服务|agents?|productivity|legal services", re.I),
+    ),
+]
 
 
 def _clean(value: object) -> str:
@@ -131,6 +188,7 @@ def _extract_company_name(title: str, summary: str) -> tuple[str, float]:
         re.compile(r"(?<![A-Za-z0-9])([A-Z][A-Za-z0-9.]{2,}(?:\s+AI)?)\s*(?:完成|获|宣布|拟融资|新一轮融资|斥资)"),
         re.compile(r"(?<![A-Za-z0-9])([A-Z][A-Za-z0-9.]{2,}(?:\s+AI)?)\s*(?:官宣|重启)[^，。；;]{0,18}(?:融资|招聘)"),
         re.compile(r"(?<![A-Za-z0-9])([A-Z][A-Za-z0-9.]{2,}(?:\s+AI)?)(?=重启|发布|上线|进入)"),
+        re.compile(r"(?<![A-Za-z0-9])([A-Z][A-Za-z0-9.]{2,}(?:\s+AI)?)(?=上市前夕|冲刺IPO|拟上市)"),
         re.compile(r"([\u4e00-\u9fff]{2,10}?)(?=连续完成|完成|获得|宣布)(?:连续)?(?:完成|获得|宣布)(?:超|近|新一轮|两轮|数轮)?"),
     ]
 
@@ -194,11 +252,14 @@ def _extract_team(text: str) -> List[str]:
         members.append(f"{match.group('name')}（创始人；{_clean(match.group('background'))}）")
 
     for match in re.finditer(
-        r"(?:创始人|联合创始人|CEO|首席执行官)[：:\s]*([\u4e00-\u9fff]{2,4}|"
+        r"(?:创始人|联合创始人|CEO|首席执行官)[：:\s]*([\u4e00-\u9fff]{2,3}|"
         r"[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})",
         text,
     ):
-        members.append(f"{match.group(1)}（核心团队）")
+        name = match.group(1)
+        if len(name) == 3 and name[-1] in "又在称将曾已还也则的":
+            name = name[:-1]
+        members.append(f"{name}（核心团队）")
 
     for match in re.finditer(
         r"(?i:founded|co-founded)\s+by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})",
@@ -223,6 +284,184 @@ def _extract_team(text: str) -> List[str]:
     return _unique(members)
 
 
+def _company_relevant_evidence(
+    company_name: str,
+    title: str,
+    summary: str,
+    article_text: str,
+) -> str:
+    evidence = [part for part in (title, summary) if part]
+    if article_text and company_name != UNKNOWN_COMPANY:
+        company_key = company_name.casefold()
+        sentences = re.split(r"(?<=[。！？!?])|\n+", article_text[:12000])
+        evidence.extend(
+            sentence
+            for sentence in sentences
+            if company_key in sentence.casefold() and len(sentence) <= 600
+        )
+    return "。".join(evidence[:14])
+
+
+def _trim_profile_value(value: str) -> str:
+    value = _clean(value).strip(" -—:：,，。；;")
+    if re.search(r"\b(?:seed|round|funding)\b", value, re.I):
+        value = re.sub(r"^.*\bfor\s+", "", value, flags=re.I)
+    value = re.split(
+        r"(?:，|,|；|;)\s*(?:总部|核心团队|团队|并(?:完成|获得)|"
+        r"已完成|完成|获得|获|融资|领投|参投)",
+        value,
+        maxsplit=1,
+    )[0]
+    return value[:120].strip(" -—:：,，。；;")
+
+
+def _extract_business_description(company_name: str, text: str) -> str:
+    escaped_company = re.escape(company_name) if company_name != UNKNOWN_COMPANY else ""
+    patterns = [
+        re.compile(
+            r"(?:专注于|聚焦于?|主营|主要从事|致力于|提供|开发|打造|构建|"
+            r"加速建设|助力|扩大|押注)"
+            r"([^，。；;]{4,100})",
+            re.I,
+        ),
+        re.compile(
+            r"(?:for its|to (?:build|provide|develop|create|bring|predict))\s+"
+            r"([^.;。；]{4,100})",
+            re.I,
+        ),
+    ]
+    if escaped_company:
+        patterns.extend(
+            [
+                re.compile(
+                    rf"([A-Za-z][A-Za-z0-9 /&+.-]{{2,60}})\s+startup\s+"
+                    rf"{escaped_company}\b",
+                    re.I,
+                ),
+                re.compile(
+                    rf"\b{escaped_company}\b\s+"
+                    rf"(?:builds|provides|develops)\s+([^.;。；]{{4,100}})",
+                    re.I,
+                ),
+            ]
+        )
+    candidates = []
+    for pattern in patterns:
+        for match in pattern.finditer(text):
+            description = _trim_profile_value(match.group(1))
+            if description and not _FUNDING_WORDS.fullmatch(description):
+                candidates.append(description)
+    return max(candidates, key=len) if candidates else ""
+
+
+def _classify_sector(business_description: str) -> str:
+    for sector, pattern in _SECTOR_RULES:
+        if pattern.search(business_description):
+            return sector
+    return ""
+
+
+def _extract_funding_stage(text: str) -> str:
+    if re.search(r"已上市|上市公司|went public|publicly listed|listed company", text, re.I):
+        return "已上市"
+    if re.search(
+        r"上市前夕|冲刺\s*IPO|拟上市|申请上市|pre[- ]?ipo|files? for (?:an? )?ipo",
+        text,
+        re.I,
+    ):
+        return "Pre-IPO"
+
+    matches: List[str] = []
+    for match in re.finditer(r"(?i:series)\s*([A-H])\s*(\+)?", text):
+        matches.append(f"{match.group(1).upper()}{'+' if match.group(2) else ''}轮")
+    for match in re.finditer(r"(?<![A-Za-z])((?:Pre[- ]?)?[A-H])(\+)?\s*轮", text, re.I):
+        stage = match.group(1).upper().replace(" ", "")
+        if stage.startswith("PRE-") or stage.startswith("PRE"):
+            stage = f"Pre-{stage[-1]}"
+        matches.append(f"{stage}{'+' if match.group(2) else ''}轮")
+    if matches:
+        return max(matches, key=lambda value: _FUNDING_STAGE_RANK.get(value, 0))
+    if re.search(r"pre[- ]?seed", text, re.I):
+        return "Pre-Seed"
+    if re.search(r"种子轮|\bseed\b|\$[\d.]+[mk]? seed\b", text, re.I):
+        return "种子轮"
+    if re.search(r"天使轮|angel (?:round|funding)", text, re.I):
+        return "天使轮"
+    if "战略融资" in text:
+        return "战略融资"
+    return ""
+
+
+def _split_locations(value: str) -> List[str]:
+    value = _trim_profile_value(value)
+    value = re.split(
+        r"(?:，|,|；|;)\s*(?:公司|该公司|团队|核心团队|并|同时)",
+        value,
+        maxsplit=1,
+    )[0]
+    return _unique(re.split(r"\s*(?:、|和|及|/|\band\b)\s*", value, flags=re.I))
+
+
+def _extract_locations(text: str, company_name: str) -> tuple[List[str], List[str]]:
+    headquarters: List[str] = []
+    team_locations: List[str] = []
+    headquarters_patterns = [
+        re.compile(r"(?:公司)?总部(?:所在地)?(?:位于|设在|坐落于|在|[：:])\s*([^。；;]{2,50})"),
+        re.compile(
+            r"(?:headquartered|company is based)\s+in\s+"
+            r"([A-Z][A-Za-z-]*(?:\s+[A-Z][A-Za-z-]*){0,3}"
+            r"(?:,\s*[A-Z][A-Za-z-]*(?:\s+[A-Z][A-Za-z-]*){0,3})?)",
+            re.I,
+        ),
+    ]
+    if company_name != UNKNOWN_COMPANY:
+        headquarters_patterns.append(
+            re.compile(
+                rf"\b{re.escape(company_name)}\b\s+is based in\s+"
+                r"([A-Z][A-Za-z-]*(?:\s+[A-Z][A-Za-z-]*){0,3}"
+                r"(?:,\s*[A-Z][A-Za-z-]*(?:\s+[A-Z][A-Za-z-]*){0,3})?)",
+                re.I,
+            )
+        )
+    for pattern in headquarters_patterns:
+        for match in pattern.finditer(text):
+            headquarters.extend(_split_locations(match.group(1)))
+    for pattern in (
+        re.compile(r"(?:核心|研发)?团队(?:主要)?(?:位于|设在|在|分布于|分布在)\s*([^。；;]{2,50})"),
+        re.compile(
+            r"(?:core|engineering|research) team is based in\s+"
+            r"([A-Z][A-Za-z-]*(?:\s+[A-Z][A-Za-z-]*){0,3}"
+            r"(?:,\s*[A-Z][A-Za-z-]*(?:\s+[A-Z][A-Za-z-]*){0,3})?)",
+            re.I,
+        ),
+    ):
+        for match in pattern.finditer(text):
+            team_locations.extend(_split_locations(match.group(1)))
+    return _unique(headquarters), _unique(team_locations)
+
+
+def _stage_rank(stage: str) -> int:
+    return _FUNDING_STAGE_RANK.get(stage, 0)
+
+
+def _company_exclusion_reason(
+    signal: CompanySignal,
+    mature_company_exclusions: Iterable[str],
+) -> str:
+    excluded_names = {
+        _normal_company_name(name)
+        for name in mature_company_exclusions
+        if _clean(name)
+    }
+    if _normal_company_name(signal.company_name) in excluded_names:
+        return "已知成熟公司，不属于当前早期 BD 阶段"
+    if signal.funding_stage in {"Pre-IPO", "已上市"}:
+        return f"公司状态为{signal.funding_stage}"
+    if _stage_rank(signal.funding_stage) >= _stage_rank("C轮"):
+        return f"融资阶段为{signal.funding_stage}，已达到 C 轮及以后"
+    return ""
+
+
 def _event_type(text: str) -> str:
     if _FUNDING_WORDS.search(text):
         return "funding"
@@ -242,18 +481,18 @@ def extract_company_signal(item: Dict, level: str) -> CompanySignal:
         company_name, article_confidence = _extract_company_name("", article_text[:6000])
         confidence = min(article_confidence, 0.72)
     investors = _extract_investors(short_evidence)
-    team_evidence = short_evidence
-    if article_text and company_name != UNKNOWN_COMPANY:
-        sentences = re.split(r"(?<=[。！？!?])|\n+", article_text[:12000])
-        company_key = company_name.casefold()
-        company_sentences = [
-            sentence
-            for sentence in sentences
-            if company_key in sentence.casefold()
-        ]
-        if company_sentences:
-            team_evidence += "。" + "。".join(company_sentences[:8])
-    team = _extract_team(team_evidence)
+    profile_evidence = _company_relevant_evidence(
+        company_name,
+        title,
+        summary,
+        article_text,
+    )
+    team = _extract_team(profile_evidence)
+    business_description = _extract_business_description(company_name, short_evidence)
+    if not business_description:
+        business_description = _extract_business_description(company_name, profile_evidence)
+    headquarters, team_locations = _extract_locations(profile_evidence, company_name)
+    funding_stage = _extract_funding_stage(profile_evidence)
     all_evidence = "。".join(part for part in (title, summary, article_text) if part)
     source = SignalSource(
         name=_clean(item.get("source_name", "")) or "原始报道",
@@ -265,6 +504,11 @@ def extract_company_signal(item: Dict, level: str) -> CompanySignal:
         company_name=company_name,
         level=_clean(level) or "未分级",
         event=title or summary or "触发事件暂未确认",
+        business_description=business_description,
+        sector=_classify_sector(business_description),
+        funding_stage=funding_stage,
+        headquarters=headquarters,
+        team_locations=team_locations,
         investors=investors,
         team=team,
         sources=[source],
@@ -308,6 +552,15 @@ def merge_company_signals(signals: Iterable[CompanySignal]) -> List[CompanySigna
             continue
         current.investors = _unique([*current.investors, *signal.investors])
         current.team = _unique([*current.team, *signal.team])
+        current.headquarters = _unique([*current.headquarters, *signal.headquarters])
+        current.team_locations = _unique([*current.team_locations, *signal.team_locations])
+        if len(signal.business_description) > len(current.business_description):
+            current.business_description = signal.business_description
+            current.sector = signal.sector
+        elif not current.sector and signal.sector:
+            current.sector = signal.sector
+        if _stage_rank(signal.funding_stage) > _stage_rank(current.funding_stage):
+            current.funding_stage = signal.funding_stage
         source_keys = {(source.name, source.url, source.title) for source in current.sources}
         for source in signal.sources:
             source_key = (source.name, source.url, source.title)
@@ -410,6 +663,19 @@ def _format_source(source: SignalSource) -> str:
 
 
 def _format_signal(signal: CompanySignal, index: int) -> str:
+    business = signal.business_description or "暂未从公开报道确认"
+    sector = signal.sector or "暂未从公开报道确认"
+    funding_stage = signal.funding_stage or "暂未从公开报道确认"
+    headquarters = (
+        "、".join(signal.headquarters)
+        if signal.headquarters
+        else "暂未从公开报道确认"
+    )
+    team_locations = (
+        "、".join(signal.team_locations)
+        if signal.team_locations
+        else "暂未从公开报道确认"
+    )
     investors = "、".join(signal.investors) if signal.investors else "暂未从公开报道确认"
     team = "；".join(signal.team) if signal.team else "暂未从公开报道确认"
     sources = "、".join(_format_source(source) for source in signal.sources[:4])
@@ -417,6 +683,11 @@ def _format_signal(signal: CompanySignal, index: int) -> str:
         sources += f" 等 {len(signal.sources)} 个来源"
     return (
         f"{index}. **公司：** {signal.company_name}\n"
+        f"   - **主要业务：** {business}\n"
+        f"   - **所属方向：** {sector}\n"
+        f"   - **融资阶段：** {funding_stage}\n"
+        f"   - **总部所在地：** {headquarters}\n"
+        f"   - **核心团队所在地：** {team_locations}\n"
         f"   - **级别：** {signal.level}\n"
         f"   - **触发事件：** {signal.event}\n"
         f"   - **资方：** {investors}\n"
@@ -448,6 +719,7 @@ def build_company_intelligence_batches(
     batch_size: int = 29000,
     fetch_full_text: bool = False,
     article_fetcher: Callable[[str], str] = fetch_article_text,
+    mature_company_exclusions: Optional[Iterable[str]] = None,
 ) -> List[str]:
     """Build app-bot-safe Markdown batches from matched news."""
     collected, source_count = _collect_stats(report_stats, rss_stats)
@@ -460,7 +732,14 @@ def build_company_intelligence_batches(
         pending_indexes = [
             index
             for index, signal in enumerate(signals)
-            if not signal.team or signal.company_name == UNKNOWN_COMPANY
+            if (
+                signal.company_name == UNKNOWN_COMPANY
+                or not signal.business_description
+                or not signal.funding_stage
+                or not signal.headquarters
+                or not signal.team_locations
+                or not signal.team
+            )
         ]
         with ThreadPoolExecutor(max_workers=min(8, max(1, len(pending_indexes)))) as executor:
             futures = {
@@ -483,12 +762,27 @@ def build_company_intelligence_batches(
                 signals[index] = extract_company_signal(working, level)
 
     merged = merge_company_signals(signals)
+    included: List[CompanySignal] = []
+    excluded: List[CompanySignal] = []
+    for signal in merged:
+        signal.exclusion_reason = _company_exclusion_reason(
+            signal,
+            mature_company_exclusions or [],
+        )
+        if signal.exclusion_reason:
+            excluded.append(signal)
+            print(f"[公司情报] 排除 {signal.company_name}：{signal.exclusion_reason}")
+        else:
+            included.append(signal)
+    if not included:
+        return []
     header = (
         "🚀 **大厂幼年体 · BD 公司情报**\n\n"
-        f"共 **{len(merged)} 家公司/线索**，由 {source_count} 条候选新闻合并。"
+        f"共 **{len(included)} 家可跟进公司/线索**，由 {source_count} 条候选新闻合并。"
+        f"成熟度规则已排除 {len(excluded)} 家。"
         "所有字段只使用公开报道中的明确证据；未披露内容会标记为“暂未确认”。\n\n"
     )
-    blocks = [_format_signal(signal, index) for index, signal in enumerate(merged, start=1)]
+    blocks = [_format_signal(signal, index) for index, signal in enumerate(included, start=1)]
     batches: List[str] = []
     current = header
     for block in blocks:

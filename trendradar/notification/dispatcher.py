@@ -496,6 +496,9 @@ class NotificationDispatcher:
             standalone_data=sd,
             company_intelligence=self.config.get("FEISHU_COMPANY_INTELLIGENCE", False),
             fetch_article_text=self.config.get("FEISHU_FETCH_ARTICLE_TEXT", False),
+            mature_company_exclusions=self.config.get(
+                "FEISHU_MATURE_COMPANY_EXCLUSIONS", []
+            ),
         )
 
     def _send_dingtalk(

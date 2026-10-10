@@ -273,6 +273,7 @@ def export_feishu_outbox(
     standalone_data: Optional[Dict] = None,
     company_intelligence: bool = False,
     fetch_article_text: bool = False,
+    mature_company_exclusions: Optional[list] = None,
 ) -> bool:
     """Write Feishu-formatted batches for a trusted local delivery worker."""
     try:
@@ -285,8 +286,9 @@ def export_feishu_outbox(
                 rss_items,
                 batch_size=batch_size,
                 fetch_full_text=fetch_article_text,
+                mature_company_exclusions=mature_company_exclusions,
             )
-        if not batches:
+        else:
             batches = build_feishu_batches(
                 report_data=report_data,
                 report_type=report_type,
