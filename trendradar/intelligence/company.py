@@ -324,13 +324,18 @@ def _trim_profile_value(value: str) -> str:
 def _valid_business_description(value: str) -> bool:
     if len(value) < 4:
         return False
-    if re.match(r"^(?:的|了|着|过|为|与|和|及|并|以|在|向|对|从|商)(?:\s|[A-Z])", value):
+    if re.match(
+        r"^(?:的|了|着|过|为|与|和|及|并|以|在|向|对|从|商)(?:\s|[A-Z])",
+        value,
+    ):
         return False
     if re.search(r"(?:时|后|前|中|下|上)$", value) and re.search(r"[\u4e00-\u9fff]", value):
         return False
     if _FUNDING_WORDS.search(value):
         return False
     if re.fullmatch(r"[A-Za-z-]+-founded\s+AI", value, re.I):
+        return False
+    if re.match(r"(?:which|what|how|why|when|where|who)\b", value, re.I):
         return False
     return True
 
@@ -712,13 +717,13 @@ def _format_business_and_sector(signal: CompanySignal) -> str:
     sector = signal.sector
     if business and sector:
         if business == sector:
-            return f"{company} 的主要业务属于 {sector}方向。"
-        return f"{company} 的主要业务是 {business}，属于 {sector}方向。"
+            return f"{company}的主要业务属于 {sector}方向。"
+        return f"{company}的主要业务是 {business}，属于 {sector}方向。"
     if business:
-        return f"{company} 的主要业务是 {business}。"
+        return f"{company}的主要业务是 {business}。"
     if sector:
         return f"{company} 属于 {sector}方向，主要业务暂未从公开报道确认。"
-    return f"暂未从公开报道确认 {company} 的主要业务与所属方向。"
+    return f"暂未从公开报道确认{company}的主要业务与所属方向。"
 
 
 def _format_company_locations(signal: CompanySignal) -> str:
