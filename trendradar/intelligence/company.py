@@ -1,9 +1,10 @@
 # coding=utf-8
 """Turn matched news into grounded, company-centric BD leads.
 
-This module intentionally has no model or paid-service dependency.  It extracts
-only facts present in the title, RSS summary, or explicitly supplied article
-text.  Missing fields remain missing and are rendered as such.
+This module intentionally has no model or paid-service dependency. It extracts
+facts from the title, RSS summary, or explicitly supplied article text, then
+optionally merges a versioned catalogue of publicly verified company profiles.
+Missing fields remain missing and are rendered as such.
 """
 
 from __future__ import annotations
@@ -14,9 +15,11 @@ import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
+from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional
 
 import requests
+import yaml
 
 
 UNKNOWN_COMPANY = "公司名称暂未确认"
@@ -46,6 +49,25 @@ class CompanySignal:
     confidence: float = 0.0
     raw_text: str = ""
     exclusion_reason: str = ""
+    profile_exclusion_reason: str = ""
+
+
+@dataclass(frozen=True)
+class VerifiedCompanyProfile:
+    """Publicly sourced facts used to repair aliases and fill missing fields."""
+
+    name: str
+    aliases: List[str] = field(default_factory=list)
+    match_patterns: List[str] = field(default_factory=list)
+    business_description: str = ""
+    sector: str = ""
+    funding_stage: str = ""
+    headquarters: List[str] = field(default_factory=list)
+    team_locations: List[str] = field(default_factory=list)
+    investors: List[str] = field(default_factory=list)
+    team: List[str] = field(default_factory=list)
+    sources: List[SignalSource] = field(default_factory=list)
+    exclude_reason: str = ""
 
 
 _OUTLET_SUFFIX = re.compile(
@@ -163,6 +185,153 @@ def _unique(values: Iterable[str]) -> List[str]:
             seen.add(key)
             result.append(cleaned)
     return result
+
+
+def _load_verified_profiles(catalog_path: str) -> List[VerifiedCompanyProfile]:
+    """Load only auditable profiles that include at least one public source URL."""
+    if not catalog_path:
+        return []
+    path = Path(catalog_path)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    if not path.exists():
+        print(f"[公司情报] 公司画像资料表不存在：{path}")
+        return []
+    try:
+        payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        print(f"[公司情报] 公司画像资料表读取失败：{type(exc).__name__}")
+        return []
+
+    profiles = []
+    for raw in payload.get("profiles", []):
+        if not isinstance(raw, dict):
+            continue
+        name = _clean(raw.get("name", ""))
+        source_rows = raw.get("sources", [])
+        sources = [
+            SignalSource(
+                name=_clean(row.get("name", "")) or "公开资料",
+                title=_clean(row.get("title", "")),
+                url=str(row.get("url") or ""),
+                time_display=_clean(row.get("time_display", "")),
+            )
+            for row in source_rows
+            if isinstance(row, dict)
+            and str(row.get("url") or "").startswith(("http://", "https://"))
+        ]
+        if not name or not sources:
+            print(f"[公司情报] 跳过缺少名称或证据链接的画像：{name or '未命名'}")
+            continue
+        profiles.append(
+            VerifiedCompanyProfile(
+                name=name,
+                aliases=_unique(raw.get("aliases", [])),
+                match_patterns=[
+                    str(pattern)
+                    for pattern in raw.get("match_patterns", [])
+                    if str(pattern).strip()
+                ],
+                business_description=_clean(raw.get("business_description", "")),
+                sector=_clean(raw.get("sector", "")),
+                funding_stage=_clean(raw.get("funding_stage", "")),
+                headquarters=_unique(raw.get("headquarters", [])),
+                team_locations=_unique(raw.get("team_locations", [])),
+                investors=_unique(raw.get("investors", [])),
+                team=_unique(raw.get("team", [])),
+                sources=sources,
+                exclude_reason=_clean(raw.get("exclude_reason", "")),
+            )
+        )
+    return profiles
+
+
+def _contains_alias(text: str, alias: str) -> bool:
+    if not text or not alias:
+        return False
+    if re.search(r"[A-Za-z0-9]", alias):
+        return bool(
+            re.search(
+                rf"(?<![A-Za-z0-9]){re.escape(alias)}(?![A-Za-z0-9])",
+                text,
+                re.IGNORECASE,
+            )
+        )
+    return alias in text
+
+
+def _match_verified_profile(
+    signal: CompanySignal,
+    profiles: Iterable[VerifiedCompanyProfile],
+) -> Optional[VerifiedCompanyProfile]:
+    company_key = _normal_company_name(signal.company_name)
+    evidence = "。".join((signal.event, signal.raw_text))
+    best_profile = None
+    best_score = 0
+    for profile in profiles:
+        names = [profile.name, *profile.aliases]
+        normalized_names = {_normal_company_name(name) for name in names}
+        score = 0
+        if signal.company_name != UNKNOWN_COMPANY and company_key in normalized_names:
+            score = 4
+        for pattern in profile.match_patterns:
+            try:
+                if re.search(pattern, evidence, re.IGNORECASE):
+                    score = max(score, 5)
+            except re.error:
+                continue
+        if any(_contains_alias(evidence, alias) for alias in names):
+            score = max(score, 3)
+        if score > best_score:
+            best_profile = profile
+            best_score = score
+    return best_profile
+
+
+def _merge_sources(
+    preferred: Iterable[SignalSource],
+    existing: Iterable[SignalSource],
+) -> List[SignalSource]:
+    result = []
+    seen = set()
+    for source in [*preferred, *existing]:
+        key = (source.name.casefold(), source.url, source.title.casefold())
+        if key not in seen:
+            seen.add(key)
+            result.append(source)
+    return result
+
+
+def _apply_verified_profile(
+    signal: CompanySignal,
+    profiles: Iterable[VerifiedCompanyProfile],
+) -> CompanySignal:
+    profile = _match_verified_profile(signal, profiles)
+    if profile is None:
+        return signal
+
+    signal.company_name = profile.name
+    signal.confidence = max(signal.confidence, 0.99)
+    if profile.business_description:
+        signal.business_description = profile.business_description
+    if profile.sector:
+        signal.sector = profile.sector
+    elif profile.business_description:
+        signal.sector = _classify_sector(profile.business_description)
+    if _stage_rank(profile.funding_stage) > _stage_rank(signal.funding_stage):
+        signal.funding_stage = profile.funding_stage
+    signal.headquarters = _unique([*profile.headquarters, *signal.headquarters])
+    signal.team_locations = _unique([*profile.team_locations, *signal.team_locations])
+    signal.investors = _unique([*profile.investors, *signal.investors])
+    extracted_team = signal.team
+    if profile.team:
+        extracted_team = [
+            member for member in extracted_team if "姓名未披露" not in member
+        ]
+    signal.team = _unique([*profile.team, *extracted_team])
+    signal.sources = _merge_sources(profile.sources, signal.sources)
+    signal.profile_exclusion_reason = profile.exclude_reason
+    return signal
 
 
 def _extract_company_name(title: str, summary: str) -> tuple[str, float]:
@@ -497,6 +666,8 @@ def _company_exclusion_reason(
     signal: CompanySignal,
     mature_company_exclusions: Iterable[str],
 ) -> str:
+    if signal.profile_exclusion_reason:
+        return signal.profile_exclusion_reason
     excluded_names = {
         _normal_company_name(name)
         for name in mature_company_exclusions
@@ -622,6 +793,8 @@ def merge_company_signals(signals: Iterable[CompanySignal]) -> List[CompanySigna
             current.company_name = signal.company_name
             current.event = signal.event
             current.confidence = signal.confidence
+        if signal.profile_exclusion_reason:
+            current.profile_exclusion_reason = signal.profile_exclusion_reason
         current.raw_text = "。".join(filter(None, (current.raw_text, signal.raw_text)))
 
     return sorted(
@@ -715,14 +888,19 @@ def _format_business_and_sector(signal: CompanySignal) -> str:
     company = signal.company_name if signal.company_name != UNKNOWN_COMPANY else "该公司"
     business = signal.business_description.rstrip("。.!！")
     sector = signal.sector
+    business_gap = "" if re.match(r"[\u4e00-\u9fff]", business) else " "
+    sector_gap = "" if re.match(r"[\u4e00-\u9fff]", sector) else " "
     if business and sector:
         if business == sector:
-            return f"{company}的主要业务属于 {sector}方向。"
-        return f"{company}的主要业务是 {business}，属于 {sector}方向。"
+            return f"{company}的主要业务属于{sector_gap}{sector}方向。"
+        return (
+            f"{company}的主要业务是{business_gap}{business}，"
+            f"属于{sector_gap}{sector}方向。"
+        )
     if business:
-        return f"{company}的主要业务是 {business}。"
+        return f"{company}的主要业务是{business_gap}{business}。"
     if sector:
-        return f"{company} 属于 {sector}方向，主要业务暂未从公开报道确认。"
+        return f"{company}属于{sector_gap}{sector}方向，主要业务暂未从公开报道确认。"
     return f"暂未从公开报道确认{company}的主要业务与所属方向。"
 
 
@@ -789,6 +967,7 @@ def build_company_intelligence_batches(
     fetch_full_text: bool = False,
     article_fetcher: Callable[[str], str] = fetch_article_text,
     mature_company_exclusions: Optional[Iterable[str]] = None,
+    company_profile_catalog: str = "",
 ) -> List[str]:
     """Build app-bot-safe Markdown batches from matched news."""
     collected, source_count = _collect_stats(report_stats, rss_stats)
@@ -829,6 +1008,12 @@ def build_company_intelligence_batches(
                 level, working = working_items[index]
                 working["article_text"] = article_text
                 signals[index] = extract_company_signal(working, level)
+
+    verified_profiles = _load_verified_profiles(company_profile_catalog)
+    if verified_profiles:
+        signals = [
+            _apply_verified_profile(signal, verified_profiles) for signal in signals
+        ]
 
     merged = merge_company_signals(signals)
     included: List[CompanySignal] = []

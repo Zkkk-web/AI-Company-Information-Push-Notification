@@ -92,6 +92,10 @@ class StartupIntelligenceRulesTest(unittest.TestCase):
 
         self.assertTrue(feishu["company_intelligence"])
         self.assertTrue(feishu["fetch_article_text"])
+        self.assertEqual(
+            feishu["company_profile_catalog"], "config/company_profiles.yaml"
+        )
+        self.assertTrue(Path(feishu["company_profile_catalog"]).exists())
         self.assertIn("Anthropic", feishu["mature_company_exclusions"])
         self.assertIn("DeepSeek", feishu["mature_company_exclusions"])
 

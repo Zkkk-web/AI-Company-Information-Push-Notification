@@ -339,6 +339,7 @@ notification:
       webhook_url: ""                 # 飞书机器人 webhook URL
       company_intelligence: true       # 本机应用机器人按公司输出名称、资方、团队和证据
       fetch_article_text: true         # 摘要缺少团队信息时尝试读取公开网页正文
+      company_profile_catalog: "config/company_profiles.yaml"  # 带公开证据的别名与公司画像
       mature_company_exclusions:       # 已不适合早期 BD 的成熟公司；融资阶段门槛仍会独立判断
         - "Anthropic"
         - "DeepSeek"

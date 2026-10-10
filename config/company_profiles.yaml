@@ -1,0 +1,279 @@
+# Publicly verified company profiles used after news extraction.
+# Every profile must include at least one evidence URL. Facts without a source
+# stay absent and are rendered as unconfirmed instead of being guessed.
+profiles:
+  - name: "Arena"
+    aliases: ["LMArena", "Arena Intelligence"]
+    match_patterns:
+      - 'AI评测榜单\s*Arena'
+      - 'AI leaderboard Arena'
+    business_description: "AI 模型与智能体评测平台"
+    sector: "AI SaaS / Productivity"
+    funding_stage: "B轮"
+    investors: ["Lightspeed", "a16z"]
+    team: ["源自加州大学伯克利分校研究团队"]
+    sources:
+      - name: "Arena 官方"
+        title: "Arena Series B"
+        url: "https://arena.ai/blog/series-b"
+      - name: "Arena 官方"
+        title: "About Arena"
+        url: "https://arena.ai/company/about"
+
+  - name: "TypeSafe AI"
+    aliases: ["TypeSafe", "Jev"]
+    match_patterns:
+      - '不聊天的AI.*75亿美元'
+      - 'AI决策模型Jev'
+    business_description: "面向智能软件的决策模型与开发基础设施"
+    sector: "AI 基础设施"
+    funding_stage: "A轮"
+    headquarters: ["旧金山"]
+    investors: ["a16z", "红杉资本 / Sequoia", "DCVC"]
+    sources:
+      - name: "TypeSafe 官方"
+        title: "TypeSafe Series AI"
+        url: "https://typesafe.ai/blog/series-ai"
+
+  - name: "Persona"
+    aliases: ["Zach Yadegari"]
+    match_patterns:
+      - 'Cal AI.*founder.*new AI startup'
+      - 'Zach Yadegari.*New AI Startup'
+    business_description: "结合可穿戴手环的个人 AI 助手"
+    sector: "AI+消费/全球互联网产品"
+    investors: ["Vine Ventures", "Collective Global"]
+    team: ["Zach Yadegari（联合创始人）"]
+    sources:
+      - name: "TechCrunch"
+        title: "Cal AI's founder launched Persona and raised $10M"
+        url: "https://techcrunch.com/2026/10/08/cal-ais-19-year-old-founder-just-raised-10m-for-his-new-ai-startup/"
+      - name: "Persona 官方"
+        title: "Persona personal AI assistant"
+        url: "https://yourpersona.com/"
+
+  - name: "Gallatin AI"
+    business_description: "面向美军的 AI 原生后勤决策平台"
+    sector: "AI SaaS / Productivity"
+    funding_stage: "A轮"
+    headquarters: ["El Segundo, California"]
+    team_locations: ["El Segundo, California", "Washington, D.C.", "Austin, Texas"]
+    investors: ["8VC", "Silent Ventures"]
+    team: ["Woody Glier（CEO）", "Brian Ballard（首席产品官）"]
+    sources:
+      - name: "Gallatin AI 官方"
+        title: "Gallatin AI announces $50M Series A"
+        url: "https://www.gallatin.ai/news/series-a-announcement"
+
+  - name: "Gudea"
+    aliases: ["GUDEA"]
+    business_description: "监测和预测网络叙事传播的 AI 情报平台"
+    sector: "AI SaaS / Productivity"
+    funding_stage: "种子轮"
+    headquarters: ["Minneapolis"]
+    team: ["Keith Presley（联合创始人）", "Jonathan Sperber（联合创始人）", "James Thomin（联合创始人）"]
+    sources:
+      - name: "GUDEA 官方"
+        title: "GUDEA narrative intelligence platform"
+        url: "https://www.gudea.ai/"
+      - name: "PR Newswire"
+        title: "GUDEA closes $7M seed round"
+        url: "https://www.prnewswire.com/news-releases/gudea-closes-oversubscribed-7-million-seed-round-to-scale-ai-powered-narrative-intelligence-302903335.html"
+
+  - name: "Sabi"
+    business_description: "集成在棒球帽中的非侵入式脑机接口"
+    sector: "AI 硬件应用"
+    funding_stage: "种子轮"
+    headquarters: ["San Francisco"]
+    investors: ["Khosla Ventures", "Accel"]
+    team: ["Rahul Chhabra（联合创始人兼 CEO）", "Atmadeep Banerjee（联合创始人兼 CTO）"]
+    sources:
+      - name: "Sabi 融资公告"
+        title: "Sabi raises $50M seed round"
+        url: "https://natlawreview.com/press-releases/sabi-raises-50-million-seed-round-led-khosla-ventures-put-brain-ai-interface"
+
+  - name: "Siena"
+    aliases: ["Siena AI"]
+    business_description: "面向消费品牌的 AI 客服与客户洞察智能体平台"
+    sector: "AI SaaS / Productivity"
+    funding_stage: "A轮"
+    investors: ["York IE", "Joyance Ventures", "Aglaé Ventures", "Sierra Ventures"]
+    team: ["Andrei Negrau（联合创始人兼 CEO）", "Lisa Popovici（联合创始人兼总裁）"]
+    sources:
+      - name: "Siena 官方"
+        title: "Siena raises $17M Series A"
+        url: "https://www.siena.cx/blog/siena-raises-17m-series-a"
+
+  - name: "Ultra Robotics"
+    aliases: ["Ultra"]
+    match_patterns:
+      - 'Ultra raises.*robots as a service'
+    business_description: "面向仓储分拣、包装和配套作业的工业机器人服务"
+    sector: "AI 硬件应用"
+    funding_stage: "A轮"
+    headquarters: ["Brooklyn, New York"]
+    sources:
+      - name: "Ultra Robotics 官方"
+        title: "Ultra Robotics"
+        url: "https://ultra.tech/"
+      - name: "Value Add Pulse"
+        title: "Ultra Robotics Series A"
+        url: "https://valueaddvc.com/pulse/ultra-robotics-62m-series-a-physical-intelligence-2026"
+
+  - name: "Vesta"
+    business_description: "为房贷机构提供 AI 原生贷款发起系统和流程智能体"
+    sector: "AI SaaS / Productivity"
+    funding_stage: "B轮"
+    headquarters: ["San Francisco"]
+    investors: ["Conversion Capital", "a16z"]
+    team: ["Mike Yu（联合创始人）", "Devon Yang（联合创始人）"]
+    sources:
+      - name: "Vesta 官方"
+        title: "About Vesta"
+        url: "https://www.vesta.com/about"
+      - name: "Vesta 官方"
+        title: "Vesta raises $30M Series B"
+        url: "https://www.vesta.com/blog/vesta-raises-30-million-to-scale-its-ai-agents-across-mortgage-lending"
+
+  - name: "Catalyst"
+    match_patterns:
+      - 'Catalyst raises.*AI trading agents'
+    business_description: "面向个人投资者的 AI 交易智能体"
+    sector: "AI+消费/全球互联网产品"
+    funding_stage: "种子轮"
+    investors: ["红杉资本 / Sequoia"]
+    sources:
+      - name: "Axios"
+        title: "Catalyst raised $30M for retail-investor trading agents"
+        url: "https://www.axios.com/newsletters/axios-pro-rata-ef74e379-7b84-4591-85a4-2420bb1f47de"
+
+  - name: "AutoTrust AI"
+    business_description: "研发面向 AI 智能体的开源决策模型"
+    sector: "AI 基础设施"
+    headquarters: ["Singapore"]
+    sources:
+      - name: "AutoTrust AI 公告"
+        title: "AutoTrust AI company releases"
+        url: "https://www.prnewswire.com/news/autotrust-ai/"
+      - name: "Hugging Face"
+        title: "AutoTrust GEV decision model"
+        url: "https://huggingface.co/autotrust/GEV-26B-Decide"
+
+  - name: "Manus"
+    aliases: ["Butterfly Effect"]
+    business_description: "可自主完成研究、编码与工作流任务的通用 AI 智能体"
+    sector: "AI SaaS / Productivity"
+    headquarters: ["Singapore"]
+    investors: ["博裕资本", "IDG资本", "腾讯", "HSG", "真格基金"]
+    team: ["肖弘（创始人兼 CEO）"]
+    sources:
+      - name: "Manus 官方"
+        title: "About Manus"
+        url: "https://manus.im/about"
+      - name: "TechCrunch"
+        title: "Manus raises over $500M"
+        url: "https://techcrunch.com/2026/10/08/chinas-manus-raises-over-500m-in-first-funding-round-since-split-with-meta/"
+
+  - name: "田柯宇世界模型公司（名称未披露）"
+    aliases: ["田柯宇"]
+    match_patterns:
+      - '田柯宇.*世界模型'
+    business_description: "研发能够理解并模拟物理环境的世界模型"
+    sector: "AI 基础设施"
+    investors: ["五源资本", "IDG资本"]
+    team: ["田柯宇（创始人）"]
+    sources:
+      - name: "凤凰网科技"
+        title: "田柯宇世界模型创业公司融资"
+        url: "https://original.ifeng.com/c/8x34XyDShMB"
+
+  - name: "厘清智能"
+    match_patterns:
+      - '蚂蚁连投两轮.*物理AI基础设施'
+    business_description: "面向物理 AI 的数据、模型、仿真、评测和部署基础设施平台"
+    sector: "AI 基础设施"
+    funding_stage: "天使轮"
+    headquarters: ["北京"]
+    investors: ["蚂蚁集团"]
+    sources:
+      - name: "第一财经"
+        title: "厘清智能连续完成两轮融资"
+        url: "https://www.yicai.com/news/103386146.html"
+
+  - name: "利太智药"
+    match_patterns:
+      - '利太智药.*种子轮'
+    business_description: "使用生成式 AI 设计多肽药物的研发平台"
+    sector: "AI SaaS / Productivity"
+    funding_stage: "种子轮"
+    team: ["贾寅君（创始人）"]
+    sources:
+      - name: "36氪"
+        title: "利太智药完成近 5000 万元种子轮融资"
+        url: "https://www.36kr.com/p/4019481828628101"
+
+  - name: "百趣生物"
+    business_description: "提供代谢组学、蛋白质组学和多组学检测与数据服务"
+    sector: "AI SaaS / Productivity"
+    funding_stage: "B轮"
+    headquarters: ["上海"]
+    team_locations: ["上海", "太仓"]
+    team: ["邓军亮（创始人兼 CEO）"]
+    sources:
+      - name: "百趣生物官方"
+        title: "百趣生物公司介绍"
+        url: "https://www.biotree.cn/shouye.html"
+      - name: "投资界"
+        title: "百趣生物完成近亿元 B 轮融资"
+        url: "https://news.pedaily.cn/202610/570017.shtml"
+
+  - name: "物外智趣"
+    aliases: ["硬件公司物外智趣"]
+    match_patterns:
+      - '儿童AI硬件公司物外智趣'
+    business_description: "面向 3 至 8 岁儿童的 AI 智能硬件"
+    sector: "AI 硬件应用"
+    funding_stage: "天使轮"
+    headquarters: ["上海"]
+    sources:
+      - name: "新浪科技"
+        title: "物外智趣完成数千万元天使轮融资"
+        url: "https://k.sina.com.cn/article_5953190046_162d6789e06703u0x0.html?from=tech"
+
+  - name: "Supabase"
+    funding_stage: "F轮"
+    exclude_reason: "融资阶段为 F 轮，已达到 C 轮及以后"
+    sources:
+      - name: "Supabase 官方"
+        title: "Supabase Series F"
+        url: "https://supabase.com/blog/series-f"
+
+  - name: "Valon"
+    funding_stage: "D轮"
+    exclude_reason: "融资阶段为 D 轮，已达到 C 轮及以后"
+    sources:
+      - name: "Valon 官方"
+        title: "Valon Series D"
+        url: "https://www.valon.ai/"
+
+  - name: "OpenAI"
+    match_patterns:
+      - 'OpenAI.*新融资'
+    exclude_reason: "已知成熟公司，不属于当前早期 BD 阶段"
+    sources:
+      - name: "OpenAI 官方"
+        title: "OpenAI"
+        url: "https://openai.com/"
+
+  - name: "Lambda"
+    match_patterns:
+      - '85后双胞胎兄弟卖AI算力'
+      - '出租AI算力.*270亿'
+    business_description: "建设 GPU 算力集群并向企业出租 AI 计算资源"
+    sector: "AI 基础设施"
+    team: ["Stephen Balaban（联合创始人）", "Michael Balaban（联合创始人）"]
+    exclude_reason: "已进入超大规模融资及上市筹备阶段，不属于当前早期 BD 阶段"
+    sources:
+      - name: "东方财富 / 铅笔道"
+        title: "Lambda 融资与上市计划"
+        url: "https://finance.eastmoney.com/a/202610103891905855.html"
