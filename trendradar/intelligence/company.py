@@ -304,6 +304,12 @@ def _company_relevant_evidence(
 
 def _trim_profile_value(value: str) -> str:
     value = _clean(value).strip(" -—:：,，。；;")
+    value = re.sub(r"\s+appeared first on\s+.+$", "", value, flags=re.I)
+    value = re.sub(
+        r"\s+(?:-|\||—)\s+[A-Z][A-Za-z0-9 .&'-]{2,40}$",
+        "",
+        value,
+    )
     if re.search(r"\b(?:seed|round|funding)\b", value, re.I):
         value = re.sub(r"^.*\bfor\s+", "", value, flags=re.I)
     value = re.split(
@@ -315,43 +321,81 @@ def _trim_profile_value(value: str) -> str:
     return value[:120].strip(" -—:：,，。；;")
 
 
+def _valid_business_description(value: str) -> bool:
+    if len(value) < 4:
+        return False
+    if re.match(r"^(?:的|了|着|过|为|与|和|及|并|以|在|向|对|从|商)(?:\s|[A-Z])", value):
+        return False
+    if re.search(r"(?:时|后|前|中|下|上)$", value) and re.search(r"[\u4e00-\u9fff]", value):
+        return False
+    if _FUNDING_WORDS.search(value):
+        return False
+    if re.fullmatch(r"[A-Za-z-]+-founded\s+AI", value, re.I):
+        return False
+    return True
+
+
 def _extract_business_description(company_name: str, text: str) -> str:
     escaped_company = re.escape(company_name) if company_name != UNKNOWN_COMPANY else ""
     patterns = [
-        re.compile(
-            r"(?:专注于|聚焦于?|主营|主要从事|致力于|提供|开发|打造|构建|"
-            r"加速建设|助力|扩大|押注)"
-            r"([^，。；;]{4,100})",
-            re.I,
+        (
+            4,
+            re.compile(
+                r"(?:专注于|聚焦于?|主营|主要从事|致力于)([^，。；;]{4,100})",
+                re.I,
+            ),
         ),
-        re.compile(
-            r"(?:for its|to (?:build|provide|develop|create|bring|predict))\s+"
-            r"([^.;。；]{4,100})",
-            re.I,
+        (
+            3,
+            re.compile(r"(?:提供|开发(?!商))([^，。；;]{4,100})", re.I),
+        ),
+        (
+            2,
+            re.compile(r"(?:打造|构建)([^，。；;]{4,100})", re.I),
+        ),
+        (
+            3,
+            re.compile(r"for its\s+([^.;。；]{4,100})", re.I),
+        ),
+        (
+            2,
+            re.compile(
+                r"to (?:build|provide|develop|create|bring|predict)\s+"
+                r"([^.;。；]{4,100})",
+                re.I,
+            ),
         ),
     ]
     if escaped_company:
         patterns.extend(
             [
-                re.compile(
-                    rf"([A-Za-z][A-Za-z0-9 /&+.-]{{2,60}})\s+startup\s+"
-                    rf"{escaped_company}\b",
-                    re.I,
+                (
+                    3,
+                    re.compile(
+                        rf"([A-Za-z][A-Za-z0-9 /&+.-]{{2,60}})\s+startup\s+"
+                        rf"{escaped_company}\b",
+                        re.I,
+                    ),
                 ),
-                re.compile(
-                    rf"\b{escaped_company}\b\s+"
-                    rf"(?:builds|provides|develops)\s+([^.;。；]{{4,100}})",
-                    re.I,
+                (
+                    4,
+                    re.compile(
+                        rf"\b{escaped_company}\b\s+"
+                        rf"(?:builds|provides|develops)\s+([^.;。；]{{4,100}})",
+                        re.I,
+                    ),
                 ),
             ]
         )
     candidates = []
-    for pattern in patterns:
+    for priority, pattern in patterns:
         for match in pattern.finditer(text):
             description = _trim_profile_value(match.group(1))
-            if description and not _FUNDING_WORDS.fullmatch(description):
-                candidates.append(description)
-    return max(candidates, key=len) if candidates else ""
+            if _valid_business_description(description):
+                candidates.append((priority, description))
+    if not candidates:
+        return ""
+    return max(candidates, key=lambda candidate: (candidate[0], len(candidate[1])))[1]
 
 
 def _classify_sector(business_description: str) -> str:
@@ -663,11 +707,18 @@ def _format_source(source: SignalSource) -> str:
 
 
 def _format_business_and_sector(signal: CompanySignal) -> str:
-    business = signal.business_description
+    company = signal.company_name if signal.company_name != UNKNOWN_COMPANY else "该公司"
+    business = signal.business_description.rstrip("。.!！")
     sector = signal.sector
     if business and sector:
-        return business if business == sector else f"{business}（{sector}）"
-    return business or sector or "暂未从公开报道确认"
+        if business == sector:
+            return f"{company} 的主要业务属于 {sector}方向。"
+        return f"{company} 的主要业务是 {business}，属于 {sector}方向。"
+    if business:
+        return f"{company} 的主要业务是 {business}。"
+    if sector:
+        return f"{company} 属于 {sector}方向，主要业务暂未从公开报道确认。"
+    return f"暂未从公开报道确认 {company} 的主要业务与所属方向。"
 
 
 def _format_company_locations(signal: CompanySignal) -> str:
