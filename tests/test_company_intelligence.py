@@ -92,6 +92,65 @@ class CompanyIntelligenceTest(unittest.TestCase):
         self.assertEqual(signal.business_description, "AI data")
         self.assertEqual(signal.funding_stage, "种子轮")
 
+    def test_rejects_dangling_business_fragment_from_product_launch(self):
+        signal = extract_company_signal(
+            {
+                "title": "Arena 完成 2 亿美元 B 轮融资并发布 Alignment Index",
+                "summary": "Arena 发布由其打造的 Alignment Index。",
+                "source_name": "测试来源",
+                "url": "https://example.com/arena",
+            },
+            "A级·重点机构投资",
+        )
+
+        self.assertEqual(signal.business_description, "")
+        self.assertEqual(signal.sector, "")
+
+    def test_rejects_funding_event_mistaken_for_business(self):
+        signal = extract_company_signal(
+            {
+                "title": "AI 模型开发商 TypeSafe AI 完成 8.7 亿美元融资",
+                "summary": "",
+                "source_name": "测试来源",
+                "url": "https://example.com/typesafe",
+            },
+            "A级·融资达标",
+        )
+
+        self.assertEqual(signal.business_description, "")
+
+    def test_removes_media_repost_suffix_from_business(self):
+        signal = extract_company_signal(
+            {
+                "title": (
+                    "Gallatin AI raises $50M in funding for its military logistics "
+                    "platform appeared first on SiliconANGLE"
+                ),
+                "summary": "",
+                "source_name": "测试来源",
+                "url": "https://example.com/gallatin",
+            },
+            "A级·融资达标",
+        )
+
+        self.assertEqual(signal.business_description, "military logistics platform")
+
+    def test_prefers_explicit_business_evidence_over_longer_marketing_phrase(self):
+        signal = extract_company_signal(
+            {
+                "title": "Acme AI 完成 A 轮融资",
+                "summary": (
+                    "Acme AI 专注于企业 AI 客服，"
+                    "并打造覆盖各行业复杂工作流程的一站式智能协同平台。"
+                ),
+                "source_name": "测试来源",
+                "url": "https://example.com/acme",
+            },
+            "A级·融资达标",
+        )
+
+        self.assertEqual(signal.business_description, "企业 AI 客服")
+
     def test_does_not_append_following_chinese_grammar_to_a_person_name(self):
         signal = extract_company_signal(
             {
@@ -275,7 +334,10 @@ class CompanyIntelligenceTest(unittest.TestCase):
         self.assertEqual(len(batches), 1)
         content = batches[0]
         self.assertIn("**公司：** Mecka AI", content)
-        self.assertIn("**业务与方向：** Robot data（AI 硬件应用）", content)
+        self.assertIn(
+            "**业务与方向：** Mecka AI 的主要业务是 Robot data，属于 AI 硬件应用方向。",
+            content,
+        )
         self.assertIn("**融资阶段：** 暂未从公开报道确认", content)
         self.assertIn("**所在地：** 暂未从公开报道确认", content)
         self.assertNotIn("**主要业务：**", content)
@@ -286,6 +348,28 @@ class CompanyIntelligenceTest(unittest.TestCase):
         self.assertIn("**团队：** 暂未从公开报道确认", content)
         self.assertIn("[TechCrunch Venture](https://example.com/mecka)", content)
         self.assertNotIn("<font", content)
+
+    def test_renders_unknown_business_and_sector_as_a_complete_sentence(self):
+        stats = [
+            {
+                "word": "A级·融资达标",
+                "titles": [
+                    {
+                        "title": "Arena 完成 2 亿美元 B 轮融资",
+                        "summary": "",
+                        "source_name": "测试来源",
+                        "url": "https://example.com/arena",
+                    }
+                ],
+            }
+        ]
+
+        content = build_company_intelligence_batches([], stats)[0]
+
+        self.assertIn(
+            "**业务与方向：** 暂未从公开报道确认 Arena 的主要业务与所属方向。",
+            content,
+        )
 
     def test_combines_headquarters_and_team_locations_without_losing_meaning(self):
         stats = [
