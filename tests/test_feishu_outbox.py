@@ -94,6 +94,36 @@ class FeishuOutboxTest(unittest.TestCase):
             self.assertIn("**资方：** 红杉资本 / Sequoia", content)
             self.assertIn("**团队：** 暂未从公开报道确认", content)
 
+    def test_does_not_fall_back_to_legacy_news_when_every_company_is_excluded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "outbox.json"
+            ok = export_feishu_outbox(
+                outbox_path=str(path),
+                report_data={"stats": []},
+                report_type="增量分析",
+                split_content_func=lambda *_args, **_kwargs: self.fail(
+                    "excluded companies must not return through the legacy renderer"
+                ),
+                rss_items=[
+                    {
+                        "word": "A级·融资达标",
+                        "titles": [
+                            {
+                                "title": "Anthropic上市前夕建设工程师学院",
+                                "source_name": "测试来源",
+                                "url": "https://example.com/anthropic",
+                            }
+                        ],
+                    }
+                ],
+                company_intelligence=True,
+                mature_company_exclusions=["Anthropic"],
+            )
+
+            self.assertTrue(ok)
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["batches"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -9,6 +9,191 @@ from trendradar.intelligence.company import (
 
 
 class CompanyIntelligenceTest(unittest.TestCase):
+    def test_extracts_business_stage_and_locations_from_explicit_evidence(self):
+        signal = extract_company_signal(
+            {
+                "title": "厘清智能完成B轮融资，加速建设Physical AI平台级底座",
+                "summary": (
+                    "厘清智能专注于Physical AI平台级基础设施，"
+                    "总部位于北京，核心团队位于北京和上海。"
+                ),
+                "source_name": "测试来源",
+                "url": "https://example.com/liq",
+            },
+            "A级·融资达标",
+        )
+
+        self.assertEqual(signal.business_description, "Physical AI平台级基础设施")
+        self.assertEqual(signal.sector, "AI 基础设施")
+        self.assertEqual(signal.funding_stage, "B轮")
+        self.assertEqual(signal.headquarters, ["北京"])
+        self.assertEqual(signal.team_locations, ["北京", "上海"])
+
+    def test_does_not_infer_location_from_dateline_or_school(self):
+        signal = extract_company_signal(
+            {
+                "title": "北京消息：清华博士创立Mecka AI并完成A轮融资",
+                "summary": "Mecka AI提供机器人数据服务。",
+                "source_name": "测试来源",
+                "url": "https://example.com/mecka",
+            },
+            "A级·融资达标",
+        )
+
+        self.assertEqual(signal.headquarters, [])
+        self.assertEqual(signal.team_locations, [])
+
+    def test_keeps_company_and_team_locations_separate_in_english(self):
+        signal = extract_company_signal(
+            {
+                "title": "Mecka AI raises a Series A",
+                "summary": (
+                    "Mecka AI is based in San Francisco, California. "
+                    "Its engineering team is based in New York."
+                ),
+                "source_name": "测试来源",
+                "url": "https://example.com/mecka",
+            },
+            "A级·融资达标",
+        )
+
+        self.assertEqual(signal.headquarters, ["San Francisco, California"])
+        self.assertEqual(signal.team_locations, ["New York"])
+
+    def test_prefers_title_business_and_ignores_unrelated_article_recommendations(self):
+        signal = extract_company_signal(
+            {
+                "title": "Robot data startup Mecka AI nabs $60M from Sequoia",
+                "summary": "",
+                "article_text": (
+                    "Mecka AI builds datasets for robots. "
+                    + "Recommended story about a 19-year-old founder. " * 50
+                ),
+                "source_name": "测试来源",
+                "url": "https://example.com/mecka",
+            },
+            "A级·重点机构投资",
+        )
+
+        self.assertEqual(signal.business_description, "Robot data")
+        self.assertNotIn("19 岁创始人（姓名未披露）", signal.team)
+
+    def test_removes_funding_prefix_from_english_startup_descriptor(self):
+        signal = extract_company_signal(
+            {
+                "title": "a16z leads $16M seed for AI data startup Preference Model",
+                "summary": "",
+                "source_name": "测试来源",
+                "url": "https://example.com/preference-model",
+            },
+            "A级·重点机构投资",
+        )
+
+        self.assertEqual(signal.business_description, "AI data")
+        self.assertEqual(signal.funding_stage, "种子轮")
+
+    def test_does_not_append_following_chinese_grammar_to_a_person_name(self):
+        signal = extract_company_signal(
+            {
+                "title": "Manus完成新一轮融资",
+                "summary": "Manus CEO肖弘又在发布会上介绍了产品。",
+                "source_name": "测试来源",
+                "url": "https://example.com/manus",
+            },
+            "A级·融资达标",
+        )
+
+        self.assertIn("肖弘（核心团队）", signal.team)
+        self.assertNotIn("肖弘又（核心团队）", signal.team)
+
+    def test_excludes_series_c_pre_ipo_and_configured_mature_companies(self):
+        stats = [
+            {
+                "word": "A级·融资达标",
+                "titles": [
+                    {
+                        "title": "Arena完成2亿美元B轮融资",
+                        "source_name": "测试来源",
+                        "url": "https://example.com/arena",
+                    },
+                    {
+                        "title": "LateCo完成1亿美元C轮融资",
+                        "source_name": "测试来源",
+                        "url": "https://example.com/lateco",
+                    },
+                    {
+                        "title": "Anthropic上市前夕建设工程师学院",
+                        "source_name": "测试来源",
+                        "url": "https://example.com/anthropic",
+                    },
+                    {
+                        "title": "DeepSeek新一轮融资",
+                        "source_name": "测试来源",
+                        "url": "https://example.com/deepseek",
+                    },
+                ],
+            }
+        ]
+
+        content = build_company_intelligence_batches(
+            [],
+            stats,
+            mature_company_exclusions=["Anthropic", "DeepSeek"],
+        )[0]
+
+        self.assertIn("**公司：** Arena", content)
+        self.assertNotIn("LateCo", content)
+        self.assertNotIn("Anthropic", content)
+        self.assertNotIn("DeepSeek", content)
+
+    def test_applies_maturity_filter_after_merging_company_reports(self):
+        stats = [
+            {
+                "word": "A级·融资达标",
+                "titles": [
+                    {
+                        "title": "GrowthCo完成B轮融资",
+                        "source_name": "早期报道",
+                        "url": "https://example.com/growth-b",
+                    },
+                    {
+                        "title": "GrowthCo宣布完成C轮融资",
+                        "source_name": "后续报道",
+                        "url": "https://example.com/growth-c",
+                    },
+                    {
+                        "title": "SeedCo完成种子轮融资",
+                        "source_name": "测试来源",
+                        "url": "https://example.com/seed",
+                    },
+                ],
+            }
+        ]
+
+        content = build_company_intelligence_batches([], stats)[0]
+
+        self.assertNotIn("GrowthCo", content)
+        self.assertIn("**公司：** SeedCo", content)
+
+    def test_keeps_unknown_stage_and_marks_it_unconfirmed(self):
+        stats = [
+            {
+                "word": "A级·重点机构投资",
+                "titles": [
+                    {
+                        "title": "DiffuSpace完成两轮融资，总金额数亿人民币",
+                        "source_name": "测试来源",
+                        "url": "https://example.com/diffuspace",
+                    }
+                ],
+            }
+        ]
+
+        content = build_company_intelligence_batches([], stats)[0]
+
+        self.assertIn("**公司：** DiffuSpace", content)
+        self.assertIn("**融资阶段：** 暂未从公开报道确认", content)
+
     def test_extracts_english_company_investor_and_event(self):
         signal = extract_company_signal(
             {
@@ -90,6 +275,11 @@ class CompanyIntelligenceTest(unittest.TestCase):
         self.assertEqual(len(batches), 1)
         content = batches[0]
         self.assertIn("**公司：** Mecka AI", content)
+        self.assertIn("**主要业务：** Robot data", content)
+        self.assertIn("**所属方向：** AI 硬件应用", content)
+        self.assertIn("**融资阶段：** 暂未从公开报道确认", content)
+        self.assertIn("**总部所在地：** 暂未从公开报道确认", content)
+        self.assertIn("**核心团队所在地：** 暂未从公开报道确认", content)
         self.assertIn("**资方：** 红杉资本 / Sequoia", content)
         self.assertIn("**团队：** 暂未从公开报道确认", content)
         self.assertIn("[TechCrunch Venture](https://example.com/mecka)", content)
