@@ -454,6 +454,10 @@ def _load_webhook_config(config_data: Dict) -> Dict:
         "FEISHU_MATURE_COMPANY_EXCLUSIONS": feishu.get(
             "mature_company_exclusions", []
         ),
+        "FEISHU_COMPANY_PROFILE_CATALOG": _get_env_str(
+            "FEISHU_COMPANY_PROFILE_CATALOG"
+        )
+        or feishu.get("company_profile_catalog", ""),
         # 钉钉
         "DINGTALK_WEBHOOK_URL": _get_env_str("DINGTALK_WEBHOOK_URL") or dingtalk.get("webhook_url", ""),
         # 企业微信

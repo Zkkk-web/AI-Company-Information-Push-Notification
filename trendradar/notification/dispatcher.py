@@ -499,6 +499,9 @@ class NotificationDispatcher:
             mature_company_exclusions=self.config.get(
                 "FEISHU_MATURE_COMPANY_EXCLUSIONS", []
             ),
+            company_profile_catalog=self.config.get(
+                "FEISHU_COMPANY_PROFILE_CATALOG", ""
+            ),
         )
 
     def _send_dingtalk(

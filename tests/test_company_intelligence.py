@@ -1,4 +1,8 @@
+import tempfile
 import unittest
+from pathlib import Path
+
+import yaml
 
 from trendradar.intelligence.company import (
     build_company_intelligence_batches,
@@ -9,6 +13,16 @@ from trendradar.intelligence.company import (
 
 
 class CompanyIntelligenceTest(unittest.TestCase):
+    def _write_profile_catalog(self, profiles):
+        temp_dir = tempfile.TemporaryDirectory()
+        path = Path(temp_dir.name) / "company-profiles.yaml"
+        path.write_text(
+            yaml.safe_dump({"profiles": profiles}, allow_unicode=True),
+            encoding="utf-8",
+        )
+        self.addCleanup(temp_dir.cleanup)
+        return str(path)
+
     def test_extracts_business_stage_and_locations_from_explicit_evidence(self):
         signal = extract_company_signal(
             {
@@ -546,6 +560,144 @@ class CompanyIntelligenceTest(unittest.TestCase):
         self.assertIn("**公司：** 于界智能", batches[0])
         self.assertIn("**资方：** 五源资本", batches[0])
         self.assertIn("孔令鹏", batches[0])
+
+    def test_verified_profiles_canonicalize_enrich_and_merge_aliases(self):
+        catalog = self._write_profile_catalog(
+            [
+                {
+                    "name": "TypeSafe AI",
+                    "aliases": ["TypeSafe", "Jev"],
+                    "match_patterns": ["不聊天的AI.*75亿美元"],
+                    "business_description": "面向软件智能体的决策模型与基础设施",
+                    "sector": "AI 基础设施",
+                    "funding_stage": "A轮",
+                    "headquarters": ["旧金山"],
+                    "investors": ["a16z", "红杉资本 / Sequoia"],
+                    "team": ["Jev 核心研发团队"],
+                    "sources": [
+                        {
+                            "name": "TypeSafe 官方",
+                            "title": "TypeSafe Series A",
+                            "url": "https://typesafe.ai/blog/series-ai",
+                        }
+                    ],
+                },
+                {
+                    "name": "Persona",
+                    "aliases": ["Zach Yadegari"],
+                    "match_patterns": ["Cal AI.*founder.*new AI startup"],
+                    "business_description": "带可穿戴设备的个人 AI 助手",
+                    "sector": "AI+消费/全球互联网产品",
+                    "team": ["Zach Yadegari（联合创始人）"],
+                    "sources": [
+                        {
+                            "name": "TechCrunch",
+                            "title": "Persona launch and funding",
+                            "url": "https://example.com/persona",
+                        }
+                    ],
+                },
+            ]
+        )
+        stats = [
+            {
+                "word": "A级·融资达标",
+                "titles": [
+                    {
+                        "title": "Jev creator TypeSafe closes $870M round",
+                        "url": "https://example.com/typesafe-1",
+                    },
+                    {
+                        "title": "a16z领投，AI决策模型Jev爆火数周即完成8.7亿融资",
+                        "url": "https://example.com/typesafe-2",
+                    },
+                    {
+                        "title": "不聊天的AI，上线不到一个月，完成75亿美元估值融资",
+                        "url": "https://example.com/typesafe-3",
+                    },
+                    {
+                        "title": "Cal AI’s 19-year-old founder just raised $10M for his new AI startup",
+                        "url": "https://example.com/persona-1",
+                    },
+                    {
+                        "title": "Zach Yadegari Raises $10 Million for New AI Startup",
+                        "url": "https://example.com/persona-2",
+                    },
+                ],
+            }
+        ]
+
+        content = build_company_intelligence_batches(
+            [], stats, company_profile_catalog=catalog
+        )[0]
+
+        self.assertEqual(content.count("**公司：** TypeSafe AI"), 1)
+        self.assertEqual(content.count("**公司：** Persona"), 1)
+        self.assertNotIn("**公司：** 爆火数周即", content)
+        self.assertNotIn("**公司：** Cal AI", content)
+        self.assertIn("面向软件智能体的决策模型与基础设施", content)
+        self.assertIn("TypeSafe 官方", content)
+        self.assertIn("Zach Yadegari（联合创始人）", content)
+
+    def test_verified_profiles_exclude_mature_companies_after_canonicalization(self):
+        catalog = self._write_profile_catalog(
+            [
+                {
+                    "name": "Supabase",
+                    "funding_stage": "F轮",
+                    "sources": [
+                        {
+                            "name": "Supabase 官方",
+                            "title": "Series F",
+                            "url": "https://supabase.com/blog/series-f",
+                        }
+                    ],
+                },
+                {
+                    "name": "Valon",
+                    "funding_stage": "D轮",
+                    "sources": [
+                        {
+                            "name": "Valon 官方",
+                            "title": "Series D",
+                            "url": "https://www.valon.ai/",
+                        }
+                    ],
+                },
+                {
+                    "name": "OpenAI",
+                    "exclude_reason": "已知成熟公司，不属于当前早期 BD 阶段",
+                    "match_patterns": ["OpenAI.*新融资"],
+                    "sources": [
+                        {
+                            "name": "OpenAI",
+                            "title": "OpenAI",
+                            "url": "https://openai.com/",
+                        }
+                    ],
+                },
+            ]
+        )
+        stats = [
+            {
+                "word": "A级·融资达标",
+                "titles": [
+                    {"title": "Supabase获1.5亿美元融资", "url": "https://example.com/s"},
+                    {"title": "Valon raises $150M", "url": "https://example.com/v"},
+                    {"title": "OpenAI 寻求 300 亿美元新融资", "url": "https://example.com/o"},
+                    {"title": "SeedCo完成种子轮融资", "url": "https://example.com/seed"},
+                ],
+            }
+        ]
+
+        content = build_company_intelligence_batches(
+            [], stats, company_profile_catalog=catalog
+        )[0]
+
+        self.assertNotIn("Supabase", content)
+        self.assertNotIn("Valon", content)
+        self.assertNotIn("OpenAI", content)
+        self.assertIn("SeedCo", content)
 
     def test_does_not_match_investor_name_inside_unrelated_word(self):
         signal = extract_company_signal(
