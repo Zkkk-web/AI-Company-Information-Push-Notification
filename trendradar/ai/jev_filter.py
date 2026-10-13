@@ -112,6 +112,9 @@ _ENTITY_STOPWORDS = {
 
 def _clean_text(value: Any, max_chars: int) -> str:
     text = unescape(str(value or ""))
+    # Google News wraps the publisher in a font tag. It is feed chrome, not
+    # part of the headline and must never become the deduplication entity.
+    text = re.sub(r"<font\b[^>]*>.*?</font>", " ", text, flags=re.I | re.S)
     text = re.sub(r"<[^>]+>", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text[:max_chars]
@@ -119,7 +122,8 @@ def _clean_text(value: Any, max_chars: int) -> str:
 
 def funding_event_key(title: str, tag: str) -> Optional[str]:
     """Return a conservative company key for cross-source funding duplicates."""
-    if not str(tag).startswith("A级") or not _FUNDING_WORDS.search(title or ""):
+    title = _clean_text(title, 500)
+    if not str(tag).startswith("A级") or not _FUNDING_WORDS.search(title):
         return None
     for pattern in _ENTITY_PATTERNS:
         match = pattern.search(title)

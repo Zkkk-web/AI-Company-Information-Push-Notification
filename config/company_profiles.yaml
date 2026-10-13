@@ -174,6 +174,135 @@ profiles:
         title: "Manus raises over $500M"
         url: "https://techcrunch.com/2026/10/08/chinas-manus-raises-over-500m-in-first-funding-round-since-split-with-meta/"
 
+  - name: "Mistlabs / Ambi"
+    aliases: ["Mistlabs", "Ambi"]
+    match_patterns:
+      - '前\s*Plaud\s*高管.*2600\s*万美元'
+      - 'Mistlabs.*Ambi.*\$26M'
+    business_description: "基于环境与个人上下文主动理解、预测需求并执行任务的 AI 助手"
+    sector: "AI+消费/全球互联网产品"
+    funding_stage: "Pre-A轮"
+    headquarters: ["San Francisco"]
+    investors: ["Luminous Ventures", "Huaqin"]
+    team: ["Peter Mo（创始人兼 CEO）"]
+    sources:
+      - name: "Ambi 官方"
+        title: "About Ambi"
+        url: "https://www.ambi.ai/en/about"
+      - name: "TechCrunch"
+        title: "Former Plaud exec raises $26M for Ambi"
+        url: "https://techcrunch.com/2026/10/12/former-plaud-exec-raises-26m-for-ai-app-that-listens-to-you-in-the-background/"
+      - name: "PR Newswire"
+        title: "Mistlabs launches Ambi"
+        url: "https://www.prnewswire.com/news-releases/mistlabs-launches-ambi-a-new-type-of-ai-that-thinks-ahead-and-aims-to-enable-ai-to-ai-communication-302905117.html"
+
+  - name: "Autentic AI"
+    match_patterns:
+      - 'Autentic AI.*€1\.5M.*Pre-Seed'
+    business_description: "使用 AI 采访自动完成市场调研和消费者洞察"
+    sector: "AI SaaS / Productivity"
+    funding_stage: "Pre-Seed"
+    headquarters: ["Barcelona"]
+    investors: ["Baobab Ventures", "Lanai Ventures", "Acurio Ventures", "Masia VC"]
+    team: ["Dani Diestre（联合创始人）"]
+    sources:
+      - name: "Autentic AI 官方"
+        title: "Autentic AI"
+        url: "https://www.autentic.ai/"
+      - name: "Spain Startup Ecosystem"
+        title: "Autentic AI raises €1.5M"
+        url: "https://startups.one.gob.es/news/note/autentic-ai-raises-1-5m-to-speed-up-ai-market-research"
+
+  - name: "Winverse AI"
+    aliases: ["Winverse"]
+    match_patterns:
+      - 'DeepSeek.*(?:robotics AI startup|robot AI startup|Robot Lab)'
+      - '语言模型的天花板.*梁文锋'
+    business_description: "研发用于机器人感知、决策与行动的具身智能基础模型"
+    sector: "AI 硬件应用"
+    funding_stage: "种子轮"
+    headquarters: ["Hangzhou"]
+    investors: ["DeepSeek"]
+    team: ["Hu Han（创始人；前腾讯 AI 科学家）"]
+    sources:
+      - name: "Investing.com / Reuters"
+        title: "DeepSeek to lead Winverse funding round"
+        url: "https://www.investing.com/news/stock-market-news/deepseek-to-lead-funding-round-for-robotics-ai-startup-winverse-at-400-mln--report-93CH-4944293"
+      - name: "Yahoo Finance / Bloomberg"
+        title: "DeepSeek backs ex-Tencent scientist's robot lab"
+        url: "https://finance.yahoo.com/technology/ai/articles/deepseek-backs-ex-tencent-ai-114226069.html"
+
+  - name: "Matter Machine"
+    aliases: ["Matter Machine Ltd"]
+    match_patterns:
+      - 'IP Group.*£4M.*AI startup Matte'
+      - 'Matter Machine.*£4M'
+    business_description: "使用 AI 和自动化实验加速新材料发现"
+    sector: "AI SaaS / Productivity"
+    funding_stage: "Pre-A轮"
+    headquarters: ["Liverpool"]
+    investors: ["IP Group", "Northern Gritstone", "University Enterprise Fund"]
+    team: ["Gordon Sanghera（执行主席）"]
+    sources:
+      - name: "IP Group"
+        title: "Matter Machine raises £4m pre-Series A"
+        url: "https://www.ipgroupplc.com/news-and-events/ip-group-news/2026/2026-10-12"
+      - name: "University of Liverpool"
+        title: "Matter Machine secures £4m"
+        url: "https://news.liverpool.ac.uk/2026/10/12/university-of-liverpool-spin-out-secures-4m-to-accelerate-ai-powered-materials-discovery/"
+
+  - name: "Loops"
+    match_patterns:
+      - 'E-commerce AI startup Loops.*\$3\.5M'
+    business_description: "为电商企业提供可执行运营、转化与客户体验任务的 AI 智能体平台"
+    sector: "AI+消费/全球互联网产品"
+    funding_stage: "种子轮"
+    headquarters: ["San Francisco"]
+    investors: ["a16z Speedrun", "NTT DOCOMO Ventures", "Connecticut Innovations", "Alumni Ventures", "Monday Capital"]
+    team: ["Ari Nazir（联合创始人）", "Ilker Selim Zorluoglu（联合创始人）", "Yusuf Bahadir（联合创始人）"]
+    sources:
+      - name: "Loops 融资公告"
+        title: "Loops raises $3.5M"
+        url: "https://www.globenewswire.com/news-release/2026/10/12/3378912/0/en/loops-raises-3-5m-to-build-the-ai-operating-system-for-commerce.html"
+
+  - name: "模思智能"
+    aliases: ["MOSS AI", "OpenMOSS"]
+    match_patterns:
+      - '复旦师生.*Pre-A.*10\s*亿'
+      - '模思智能.*10\s*亿.*Pre-A'
+    business_description: "研发理解文字、语音、视觉与环境信号的全模态实时交互大模型"
+    sector: "AI 基础设施"
+    funding_stage: "Pre-A轮"
+    headquarters: ["上海"]
+    investors: ["华控基金", "国开科创", "上海科创基金", "新微资本", "徐汇资本"]
+    team: ["邱锡鹏（首席科学家）"]
+    sources:
+      - name: "模思智能官方"
+        title: "模思智能完成超 10 亿元 Pre-A 轮融资"
+        url: "https://www.mosi.cn/news/moss-ai-1b-pre-a-funding-all-modal-realtime-interaction-base"
+      - name: "模思智能官方"
+        title: "About MOSS AI"
+        url: "https://www.mosi.cn/about"
+
+  - name: "Harvey"
+    aliases: ["Harvey AI"]
+    business_description: "为律所和企业法务团队提供法律 AI 工作平台"
+    sector: "AI SaaS / Productivity"
+    exclude_reason: "累计融资已超 10 亿美元且估值 155 亿美元，不属于当前早期 BD 阶段"
+    sources:
+      - name: "Harvey 官方"
+        title: "Harvey raises $550M at a $15.5B valuation"
+        url: "https://www.harvey.ai/blog/harvey-raises-dollar550m-at-a-dollar155b-valuation-to-help-legal-teams-own-their-intelligence"
+
+  - name: "DeepSeek"
+    match_patterns:
+      - 'DeepSeek.*(?:融资|funding)'
+    exclude_reason: "已知成熟公司，不属于当前早期 BD 阶段"
+    sources:
+      - name: "Reuters"
+        title: "DeepSeek financing report"
+        url: "https://www.reuters.com/world/asia-pacific/deepseek-raise-least-12-billion-tencent-backed-funding-bloomberg-news-reports-2026-10-06/"
+
   - name: "田柯宇世界模型公司（名称未披露）"
     aliases: ["田柯宇"]
     match_patterns:

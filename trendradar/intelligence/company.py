@@ -73,7 +73,9 @@ class VerifiedCompanyProfile:
 _OUTLET_SUFFIX = re.compile(
     r"\s+(?:-|\||—)\s+(?:TechCrunch|Dealroom|CryptoRank|Wowtale|Law\.com|"
     r"EU-Startups|The Next Web|新浪网|搜狐网|财联社|动脉网|泰伯网|"
-    r"电子工程专辑|21财经|SiliconANGLE).*$",
+    r"电子工程专辑|21财经|SiliconANGLE|Quartz|Startup Fortune|"
+    r"AI Insider|Pluang|Investing\.com|Bloomberg\.com|至顶网|"
+    r"www\.mrjjxw\.com).*$",
     re.IGNORECASE,
 )
 _SPACE = re.compile(r"\s+")
@@ -112,6 +114,19 @@ _ENGLISH_STOP_NAMES = {
     "Engineering AI Startup",
     "Legal Services Startup",
     "Robot Data Startup",
+}
+
+_GENERIC_COMPANY_NAMES = {
+    "企业",
+    "公司",
+    "刚刚",
+    "将在近期",
+    "近期",
+    "模型公司",
+    "AI公司",
+    "AI初创公司",
+    "初创公司",
+    "这家模型公司",
 }
 
 _FUNDING_STAGE_RANK = {
@@ -171,8 +186,32 @@ def _clean(value: object) -> str:
     return _SPACE.sub(" ", text).strip()
 
 
+def _clean_summary(value: object) -> str:
+    """Remove Google News publisher chrome before cleaning RSS summaries."""
+    text = html.unescape(str(value or ""))
+    text = re.sub(r"<font\b[^>]*>.*?</font>", " ", text, flags=re.I | re.S)
+    return _clean(text)
+
+
 def _clean_title(title: str) -> str:
     return _OUTLET_SUFFIX.sub("", _clean(title)).strip(" -|—")
+
+
+def _is_valid_company_name(name: str) -> bool:
+    cleaned = _clean(name).strip("“”\"'的 ,，。；;:：")
+    if not cleaned or cleaned == UNKNOWN_COMPANY:
+        return False
+    if cleaned in _ENGLISH_STOP_NAMES or cleaned in _GENERIC_COMPANY_NAMES:
+        return False
+    if "..." in cleaned or "…" in cleaned:
+        return False
+    if re.match(r"^(?:这家|那家|某家|一家|刚刚|近期|将在)", cleaned):
+        return False
+    if re.fullmatch(r"(?:AI|人工智能|模型|科技|初创|创业|目标)?(?:公司|企业|团队)", cleaned, re.I):
+        return False
+    if re.search(r"(?:融资|估值|亿元|万美元)$", cleaned):
+        return False
+    return len(cleaned) <= 40
 
 
 def _unique(values: Iterable[str]) -> List[str]:
@@ -323,12 +362,9 @@ def _apply_verified_profile(
     signal.headquarters = _unique([*profile.headquarters, *signal.headquarters])
     signal.team_locations = _unique([*profile.team_locations, *signal.team_locations])
     signal.investors = _unique([*profile.investors, *signal.investors])
-    extracted_team = signal.team
-    if profile.team:
-        extracted_team = [
-            member for member in extracted_team if "姓名未披露" not in member
-        ]
-    signal.team = _unique([*profile.team, *extracted_team])
+    # A sourced profile is authoritative for people. Mixing it with permissive
+    # title extraction previously produced names such as "肖弘过".
+    signal.team = _unique(profile.team if profile.team else signal.team)
     signal.sources = _merge_sources(profile.sources, signal.sources)
     signal.profile_exclusion_reason = profile.exclude_reason
     return signal
@@ -346,6 +382,10 @@ def _extract_company_name(title: str, summary: str) -> tuple[str, float]:
             r"\s+(?i:raises?|raised|nabs|lands|announces|secures|closes)\b",
         ),
         re.compile(
+            r"\b(?i:startup|company)\s+([A-Z][A-Za-z0-9.]+(?:\s+[A-Z][A-Za-z0-9.]+){0,3})"
+            r"(?=\s+(?i:at|with|for|to|that|which|is|was|has|whose)\b|\s*$)",
+        ),
+        re.compile(
             r"\b([A-Z][A-Za-z0-9.]+(?:\s+[A-Z][A-Za-z0-9.]+){0,3})"
             r"\s+(?i:raises?|raised|nabs|lands|announces|secures|closes)\b",
         ),
@@ -354,6 +394,14 @@ def _extract_company_name(title: str, summary: str) -> tuple[str, float]:
             r"(?=\s*(?:-|—|\||$))",
         ),
         re.compile(r"^([A-Z][A-Za-z0-9.]+(?:\s+AI)?)['’]s\b"),
+        re.compile(
+            r"^([A-Z][A-Za-z0-9.]+(?:\s+[A-Z][A-Za-z0-9.]+){0,2})"
+            r"(?=\s+(?i:takes|launches|unveils|brings|gets|wins|is|has)\b)"
+        ),
+        re.compile(
+            r"(?<![A-Za-z0-9])([A-Z][A-Za-z0-9.]{2,}(?:\s+AI)?)"
+            r"(?:将|已|拟|宣布|计划)(?:在近期)?(?:完成|获得|融资)"
+        ),
         re.compile(r"(?<![A-Za-z0-9])([A-Z][A-Za-z0-9.]{2,}(?:\s+AI)?)\s*(?:完成|获|宣布|拟融资|新一轮融资|斥资)"),
         re.compile(r"(?<![A-Za-z0-9])([A-Z][A-Za-z0-9.]{2,}(?:\s+AI)?)\s*(?:官宣|重启)[^，。；;]{0,18}(?:融资|招聘)"),
         re.compile(r"(?<![A-Za-z0-9])([A-Z][A-Za-z0-9.]{2,}(?:\s+AI)?)(?=重启|发布|上线|进入)"),
@@ -372,9 +420,7 @@ def _extract_company_name(title: str, summary: str) -> tuple[str, float]:
             name = re.sub(r"^(?:AI评测榜单|北京|上海|深圳)", "", name)
             if name.lower().endswith(" alum"):
                 continue
-            if not name or name in _ENGLISH_STOP_NAMES:
-                continue
-            if len(name) > 40:
+            if not _is_valid_company_name(name):
                 continue
             return name, 0.96 if index == 0 else 0.82
 
@@ -385,7 +431,7 @@ def _extract_company_name(title: str, summary: str) -> tuple[str, float]:
         r"(?=\s*(?:新一轮融资|融资|获投|拟融资))",
         title,
     )
-    if match:
+    if match and _is_valid_company_name(match.group(1)):
         return match.group(1), 0.9
     return UNKNOWN_COMPANY, 0.25
 
@@ -682,6 +728,15 @@ def _company_exclusion_reason(
     return ""
 
 
+def _quality_exclusion_reason(signal: CompanySignal) -> str:
+    """Hold back cards that cannot answer the two minimum BD questions."""
+    if not _is_valid_company_name(signal.company_name):
+        return "公司实体未确认"
+    if not signal.business_description and not signal.sector:
+        return "主营业务与方向未确认"
+    return ""
+
+
 def _event_type(text: str) -> str:
     if _FUNDING_WORDS.search(text):
         return "funding"
@@ -693,7 +748,7 @@ def _event_type(text: str) -> str:
 def extract_company_signal(item: Dict, level: str) -> CompanySignal:
     """Extract only facts grounded in one item."""
     title = _clean_title(item.get("title", ""))
-    summary = _clean(item.get("summary", ""))
+    summary = _clean_summary(item.get("summary", ""))
     article_text = _clean(item.get("article_text", ""))
     short_evidence = "。".join(part for part in (title, summary) if part)
     company_name, confidence = _extract_company_name(title, summary)
@@ -1023,6 +1078,8 @@ def build_company_intelligence_batches(
             signal,
             mature_company_exclusions or [],
         )
+        if not signal.exclusion_reason:
+            signal.exclusion_reason = _quality_exclusion_reason(signal)
         if signal.exclusion_reason:
             excluded.append(signal)
             print(f"[公司情报] 排除 {signal.company_name}：{signal.exclusion_reason}")
@@ -1033,7 +1090,7 @@ def build_company_intelligence_batches(
     header = (
         "🚀 **大厂幼年体 · BD 公司情报**\n\n"
         f"共 **{len(included)} 家可跟进公司/线索**，由 {source_count} 条候选新闻合并。"
-        f"成熟度规则已排除 {len(excluded)} 家。"
+        f"质量与成熟度规则已拦截 {len(excluded)} 家。"
         "所有字段只使用公开报道中的明确证据；未披露内容会标记为“暂未确认”。\n\n"
     )
     blocks = [_format_signal(signal, index) for index, signal in enumerate(included, start=1)]

@@ -76,7 +76,7 @@ class FeishuOutboxTest(unittest.TestCase):
                         "titles": [
                             {
                                 "title": "Mecka AI完成6000万美元融资，红杉资本领投",
-                                "summary": "",
+                                "summary": "Mecka AI专注于机器人数据服务。",
                                 "source_name": "测试来源",
                                 "url": "https://example.com/mecka",
                             }
