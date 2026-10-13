@@ -195,6 +195,193 @@ class CompanyIntelligenceTest(unittest.TestCase):
         self.assertIn("肖弘（核心团队）", signal.team)
         self.assertNotIn("肖弘又（核心团队）", signal.team)
 
+    def test_ignores_google_news_publisher_markup_as_company(self):
+        signal = extract_company_signal(
+            {
+                "title": (
+                    "DeepSeek is moving to lead a $400 million seed round for a "
+                    "Chinese robotics AI startup - Quartz"
+                ),
+                "summary": (
+                    "<font color='#6f6f6f'>Quartz</font> "
+                    "DeepSeek is moving to lead a funding round"
+                ),
+                "source_name": "全球 AI 融资搜索",
+                "url": "https://example.com/google-news",
+            },
+            "A级·融资达标",
+        )
+
+        self.assertNotIn(signal.company_name, {"Quartz", "Fortune", "Pluang"})
+        self.assertNotIn("Quartz", signal.raw_text)
+
+    def test_extracts_company_from_today_english_title_shapes(self):
+        mistlabs = extract_company_signal(
+            {
+                "title": (
+                    "Mistlabs takes its Ambi AI system out of beta on Apple devices "
+                    "with $26M in funding"
+                ),
+                "summary": "",
+            },
+            "A级·融资达标",
+        )
+        winverse = extract_company_signal(
+            {
+                "title": (
+                    "DeepSeek to lead funding round for robotics AI startup "
+                    "Winverse at $400 mln"
+                ),
+                "summary": "",
+            },
+            "A级·融资达标",
+        )
+
+        self.assertEqual(mistlabs.company_name, "Mistlabs")
+        self.assertEqual(winverse.company_name, "Winverse")
+
+    def test_rejects_time_adverbs_and_generic_nouns_as_chinese_company_names(self):
+        self.assertEqual(
+            extract_company_signal(
+                {"title": "DeepSeek将在近期完成1000亿元融资", "summary": ""},
+                "A级·融资达标",
+            ).company_name,
+            "DeepSeek",
+        )
+        bad_titles = (
+            "这家模型公司完成超10亿元Pre-A轮融资",
+            "刚刚完成数千万美元种子轮融资",
+            "企业完成A轮融资",
+        )
+
+        for title in bad_titles:
+            with self.subTest(title=title):
+                signal = extract_company_signal({"title": title, "summary": ""}, "A级·融资达标")
+                self.assertEqual(signal.company_name, "公司名称暂未确认")
+
+    def test_profile_team_replaces_noisy_extracted_team(self):
+        catalog = self._write_profile_catalog(
+            [
+                {
+                    "name": "Manus",
+                    "business_description": "通用 AI 智能体",
+                    "team": ["肖弘（创始人兼 CEO）"],
+                    "sources": [
+                        {
+                            "name": "Manus 官方",
+                            "title": "About Manus",
+                            "url": "https://manus.im/about",
+                        }
+                    ],
+                }
+            ]
+        )
+        stats = [
+            {
+                "word": "A级·融资达标",
+                "titles": [
+                    {
+                        "title": "Manus完成新一轮融资",
+                        "summary": "Manus CEO肖弘过去在发布会上介绍了产品。",
+                        "url": "https://example.com/manus",
+                    }
+                ],
+            }
+        ]
+
+        content = build_company_intelligence_batches(
+            [], stats, company_profile_catalog=catalog
+        )[0]
+
+        self.assertIn("肖弘（创始人兼 CEO）", content)
+        self.assertNotIn("肖弘过", content)
+
+    def test_quality_gate_holds_unidentified_or_uninformative_leads(self):
+        stats = [
+            {
+                "word": "A级·融资达标",
+                "titles": [
+                    {"title": "刚刚完成种子轮融资", "url": "https://example.com/bad"},
+                    {"title": "SeedCo完成种子轮融资", "url": "https://example.com/empty"},
+                    {
+                        "title": "UsefulCo完成种子轮融资",
+                        "summary": "UsefulCo专注于企业 AI 客服。",
+                        "url": "https://example.com/useful",
+                    },
+                ],
+            }
+        ]
+
+        content = build_company_intelligence_batches([], stats)[0]
+
+        self.assertIn("**公司：** UsefulCo", content)
+        self.assertNotIn("**公司：** SeedCo", content)
+        self.assertNotIn("**公司：** 刚刚", content)
+        self.assertIn("质量与成熟度规则已拦截 2 家", content)
+
+    def test_october_13_digest_repairs_entities_merges_events_and_filters_noise(self):
+        titles = [
+            "Manus，站在AI应用爆发前夜",
+            "前Plaud高管创立AI应用获2600万美元融资 - 至顶网",
+            "Autentic AI Closes €1.5M Pre-Seed Round to Automate Market Research With AI-Led Interviews - AI Insider",
+            "DeepSeek leads $400 million funding round for ex-Tencent scientist's robot AI startup - Startup Fortune",
+            "US-Based Legal AI Startup Harvey Raises $550 Million at $15.5 Billion Valuation",
+            "E-commerce AI startup Loops raises $3.5M to create smoother online shopping experiences",
+            "IP Group leads £4M funding for AI startup Matte... - Pluang",
+            "DeepSeek is moving to lead a $400 million seed round for a Chinese robotics AI startup - Quartz",
+            "VC们开抢05后：老登们怎么保住饭碗？",
+            "Mistlabs takes its Ambi AI system out of beta on Apple devices with $26M in funding",
+            "DeepSeek to lead funding round for robotics AI startup Winverse at $400 mln - report - Investing.com",
+            "DeepSeek Backs Ex-Tencent AI Scientist’s $400 Million Robot Lab - Bloomberg.com",
+            "语言模型的天花板，和梁文锋的下一场投注",
+            "DeepSeek将完成1000亿元融资",
+            "复旦师生Pre-A轮融资超10亿，想让AI懂人的情绪与处境",
+            "阶跃星辰Step 5 Preview接入腾讯WorkBuddy；模思智能完成超10亿元Pre-A轮融资",
+        ]
+        stats = [
+            {
+                "word": "A级·融资达标",
+                "titles": [
+                    {
+                        "title": title,
+                        "source_name": "2026-10-13 回归样本",
+                        "url": f"https://example.com/{index}",
+                    }
+                    for index, title in enumerate(titles)
+                ],
+            }
+        ]
+
+        content = build_company_intelligence_batches(
+            [],
+            stats,
+            company_profile_catalog="config/company_profiles.yaml",
+            mature_company_exclusions=["DeepSeek"],
+        )[0]
+
+        expected = (
+            "Manus",
+            "Mistlabs / Ambi",
+            "Autentic AI",
+            "Winverse AI",
+            "Loops",
+            "Matter Machine",
+            "模思智能",
+        )
+        for company in expected:
+            self.assertEqual(content.count(f"**公司：** {company}"), 1)
+        for rejected in (
+            "Fortune",
+            "Quartz",
+            "企业",
+            "刚刚",
+            "将在近期",
+            "模型公司",
+            "Harvey",
+            "DeepSeek",
+        ):
+            self.assertNotIn(f"**公司：** {rejected}", content)
+
     def test_excludes_series_c_pre_ipo_and_configured_mature_companies(self):
         stats = [
             {
@@ -202,6 +389,7 @@ class CompanyIntelligenceTest(unittest.TestCase):
                 "titles": [
                     {
                         "title": "Arena完成2亿美元B轮融资",
+                        "summary": "Arena专注于 AI 模型评测平台。",
                         "source_name": "测试来源",
                         "url": "https://example.com/arena",
                     },
@@ -252,6 +440,7 @@ class CompanyIntelligenceTest(unittest.TestCase):
                     },
                     {
                         "title": "SeedCo完成种子轮融资",
+                        "summary": "SeedCo专注于企业 AI 客服。",
                         "source_name": "测试来源",
                         "url": "https://example.com/seed",
                     },
@@ -271,6 +460,7 @@ class CompanyIntelligenceTest(unittest.TestCase):
                 "titles": [
                     {
                         "title": "DiffuSpace完成两轮融资，总金额数亿人民币",
+                        "summary": "DiffuSpace专注于 AI 视频生成。",
                         "source_name": "测试来源",
                         "url": "https://example.com/diffuspace",
                     }
@@ -379,7 +569,7 @@ class CompanyIntelligenceTest(unittest.TestCase):
         self.assertIn("[TechCrunch Venture](https://example.com/mecka)", content)
         self.assertNotIn("<font", content)
 
-    def test_renders_unknown_business_and_sector_as_a_complete_sentence(self):
+    def test_quality_gate_drops_unknown_business_and_sector(self):
         stats = [
             {
                 "word": "A级·融资达标",
@@ -394,12 +584,7 @@ class CompanyIntelligenceTest(unittest.TestCase):
             }
         ]
 
-        content = build_company_intelligence_batches([], stats)[0]
-
-        self.assertIn(
-            "**业务与方向：** 暂未从公开报道确认Arena的主要业务与所属方向。",
-            content,
-        )
+        self.assertEqual(build_company_intelligence_batches([], stats), [])
 
     def test_combines_headquarters_and_team_locations_without_losing_meaning(self):
         stats = [
@@ -408,25 +593,25 @@ class CompanyIntelligenceTest(unittest.TestCase):
                 "titles": [
                     {
                         "title": "SameCity AI完成A轮融资",
-                        "summary": "SameCity AI总部位于北京，核心团队位于北京。",
+                        "summary": "SameCity AI专注于企业 AI 客服，总部位于北京，核心团队位于北京。",
                         "source_name": "测试来源",
                         "url": "https://example.com/same-city",
                     },
                     {
                         "title": "SplitCity AI完成A轮融资",
-                        "summary": "SplitCity AI总部位于北京，核心团队位于上海。",
+                        "summary": "SplitCity AI专注于企业 AI 客服，总部位于北京，核心团队位于上海。",
                         "source_name": "测试来源",
                         "url": "https://example.com/split-city",
                     },
                     {
                         "title": "HeadquartersOnly AI完成A轮融资",
-                        "summary": "HeadquartersOnly AI总部位于深圳。",
+                        "summary": "HeadquartersOnly AI专注于企业 AI 客服，总部位于深圳。",
                         "source_name": "测试来源",
                         "url": "https://example.com/headquarters-only",
                     },
                     {
                         "title": "TeamOnly AI完成A轮融资",
-                        "summary": "TeamOnly AI核心团队位于杭州。",
+                        "summary": "TeamOnly AI专注于企业 AI 客服，核心团队位于杭州。",
                         "source_name": "测试来源",
                         "url": "https://example.com/team-only",
                     },
@@ -554,7 +739,10 @@ class CompanyIntelligenceTest(unittest.TestCase):
             [],
             stats,
             fetch_full_text=True,
-            article_fetcher=lambda _url: "港大教授孔令鹏创立于界智能，五源资本领投。",
+            article_fetcher=lambda _url: (
+                "港大教授孔令鹏创立于界智能，五源资本领投。"
+                "于界智能专注于 dLLM 大模型研发。"
+            ),
         )
 
         self.assertIn("**公司：** 于界智能", batches[0])
@@ -685,7 +873,11 @@ class CompanyIntelligenceTest(unittest.TestCase):
                     {"title": "Supabase获1.5亿美元融资", "url": "https://example.com/s"},
                     {"title": "Valon raises $150M", "url": "https://example.com/v"},
                     {"title": "OpenAI 寻求 300 亿美元新融资", "url": "https://example.com/o"},
-                    {"title": "SeedCo完成种子轮融资", "url": "https://example.com/seed"},
+                    {
+                        "title": "SeedCo完成种子轮融资",
+                        "summary": "SeedCo专注于企业 AI 客服。",
+                        "url": "https://example.com/seed",
+                    },
                 ],
             }
         ]

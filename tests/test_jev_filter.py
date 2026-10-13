@@ -167,6 +167,14 @@ class JevFilterTest(unittest.TestCase):
         )
         self.assertIsNone(funding_event_key("Lambda 发布新版控制台", tag))
 
+    def test_funding_event_key_ignores_google_news_publisher_markup(self):
+        key = funding_event_key(
+            "<font color='#6f6f6f'>Quartz</font> DeepSeek 领投机器人初创公司融资",
+            "A级·融资达标",
+        )
+
+        self.assertNotEqual(key, "funding:quartz")
+
     def test_pipeline_keeps_highest_confidence_duplicate(self):
         groups = {
             "A级·融资达标": {
