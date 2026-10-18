@@ -165,42 +165,42 @@ rss:
     # 验证 Feed 有内容且公网 TLS 正常后，再逐项改为 enabled: true。
     - id: "wechat-zhenfund"
       name: "真格基金（公众号）"
-      url: "https://ai-company-wechat-source.zeabur.app/feeds/1.xml"
+      url: "https://prod-main-wechrss-d18172-0020n9hxqfh.compute.instacloud-edge.com/feeds/1.xml"
       enabled: false
 
     - id: "wechat-sourcecode-capital"
       name: "源码资本（公众号）"
-      url: "https://ai-company-wechat-source.zeabur.app/feeds/2.xml"
+      url: "https://prod-main-wechrss-d18172-0020n9hxqfh.compute.instacloud-edge.com/feeds/2.xml"
       enabled: false
 
     - id: "wechat-qiming-venture"
       name: "启明创投（公众号）"
-      url: "https://ai-company-wechat-source.zeabur.app/feeds/3.xml"
+      url: "https://prod-main-wechrss-d18172-0020n9hxqfh.compute.instacloud-edge.com/feeds/3.xml"
       enabled: false
 
     - id: "wechat-frees-fund"
       name: "峰瑞资本（公众号）"
-      url: "https://ai-company-wechat-source.zeabur.app/feeds/4.xml"
+      url: "https://prod-main-wechrss-d18172-0020n9hxqfh.compute.instacloud-edge.com/feeds/4.xml"
       enabled: false
 
     - id: "wechat-bluerun-ventures"
       name: "蓝驰创投（公众号）"
-      url: "https://ai-company-wechat-source.zeabur.app/feeds/5.xml"
+      url: "https://prod-main-wechrss-d18172-0020n9hxqfh.compute.instacloud-edge.com/feeds/5.xml"
       enabled: false
 
     - id: "wechat-gaorong-ventures"
       name: "高榕创投（公众号）"
-      url: "https://ai-company-wechat-source.zeabur.app/feeds/6.xml"
+      url: "https://prod-main-wechrss-d18172-0020n9hxqfh.compute.instacloud-edge.com/feeds/6.xml"
       enabled: false
 
     - id: "wechat-linear-capital"
       name: "线性资本（公众号）"
-      url: "https://ai-company-wechat-source.zeabur.app/feeds/7.xml"
+      url: "https://prod-main-wechrss-d18172-0020n9hxqfh.compute.instacloud-edge.com/feeds/7.xml"
       enabled: false
 
     - id: "wechat-vitalbridge"
       name: "绿洲资本（公众号）"
-      url: "https://ai-company-wechat-source.zeabur.app/feeds/8.xml"
+      url: "https://prod-main-wechrss-d18172-0020n9hxqfh.compute.instacloud-edge.com/feeds/8.xml"
       enabled: false
 
 
